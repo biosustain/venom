@@ -1,16 +1,18 @@
 from abc import ABCMeta
-from typing import Iterable, TypeVar, Generic, Any
+from typing import Iterable, TypeVar, Generic, Any, Tuple, Union
 
 from venom.checks import Check, FormatCheck, StringCheck, Choice, PatternCheck, MaxLength, GreaterThanEqual, \
-    LessThanEqual
-from venom.converter import Converter
+    LessThanEqual, RepeatCheck, UniqueItems, MapCheck
+
 from venom.types import int32, int64
 
+T = TypeVar('T')
 
-class FieldDescriptor(metaclass=ABCMeta):
-    name = None  # type: Optional[str]
 
-    def __get__(self, instance: 'venom-1.message.Message', owner):
+class FieldDescriptor(Generic[T], metaclass=ABCMeta):
+    attribute = None  # type: Optional[str]
+
+    def __get__(self, instance: 'venom.message.Message', owner):
         if instance is None:
             return self
         try:
@@ -22,33 +24,21 @@ class FieldDescriptor(metaclass=ABCMeta):
             raise AttributeError
 
     # https://github.com/python/mypy/issues/244
-    def __set__(self, instance: 'venom-1.message.Message', value: T):
+    def __set__(self, instance: 'venom.message.Message', value: T):
         instance[self.attribute] = value
 
 
-T = TypeVar('T')
 
-
-class FieldType(Generic[T]):
-    def __init__(self, type_: T, *checks: Check):
-        self.type = type_
-        self.checks = checks
-
-        # TODO need to enforce that there is only one check of a certain type
-        # TODO enforce only checks of correct type.
-        # for check in checks:
-        #     assert issubclass(type_, check.type)
-
-
-class Field(FieldType, FieldDescriptor):
+class Field(FieldDescriptor):
     def __init__(self,
                  type_: T,  # Type[T]
-                 *checks: Check,
+                 *checks: Tuple[Check],
                  attribute: str = None,
                  optional: bool = True,
                  default: Any = None,
                  **options) -> None:
-        FieldType.__init__(self, type_, *checks)
+        self.type = type_
+        self.checks = checks
         self.attribute = attribute
         self.optional = optional
         self.default = default
@@ -58,8 +48,8 @@ class Field(FieldType, FieldDescriptor):
 class ConverterField(Field):
     def __init__(self,
                  type_: T,  # Type[T]
-                 *checks: Check,
-                 converter: Converter = None,
+                 *checks: Tuple[Check],
+                 converter: 'venom.converter.Converter' = None,
                  **kwargs) -> None:
         super().__init__(self, converter.wire, *checks, **kwargs)
         self.python = type_
@@ -114,3 +104,55 @@ def Int64(**kwargs):
 def Number(*checks: Check, **kwargs) -> Field[float]:
     # TODO minimum, maximum, exclusive_minimum, exclusive_maximum.
     return Field(float, *checks, **kwargs)
+
+
+CT = TypeVar('CT', Field, 'MapField', 'RepeatField')
+
+
+class RepeatField(Generic[CT], FieldDescriptor):
+    def __init__(self,
+                 items: CT,
+                 *checks: RepeatCheck,
+                 attribute: str = None,
+                 optional: bool = False) -> None:
+        self.items = items
+        # TODO need to enforce that there is only one check of a certain type
+        self.repeat_container_checks = checks
+        self.attribute = attribute
+        self.optional = optional
+
+
+class MapField(Generic[CT], FieldDescriptor):
+    def __init__(self,
+                 values: CT,
+                 *checks: MapCheck,
+                 attribute: str = None,
+                 optional: bool = False) -> None:
+        self.keys = String()
+        self.values = values
+        # TODO need to enforce that there is only one check of a certain type
+        self.map_container_checks = checks
+        self.attribute = attribute
+        self.optional = optional
+
+
+def Repeat(items: Union[Field, MapField, RepeatField, type],
+           *checks: RepeatCheck,
+           unique: bool = None,
+           **kwargs) -> RepeatField:
+    # TODO separate key checks from mapping checks here.
+    if not isinstance(items, (Field, MapField, RepeatField)):
+        items = Field(items)
+    if unique is not None:
+        checks += UniqueItems(unique=unique),
+    return RepeatField(items, *checks, **kwargs)
+
+
+def Map(values: Union[Field, MapField, RepeatField, type],
+        *checks: MapCheck,
+        **kwargs) -> MapField:
+    # TODO keys argument.
+    # TODO separate key checks from mapping checks here.
+    if not isinstance(values, (Field, MapField, RepeatField)):
+        values = Field(values)
+    return MapField(values, *checks, **kwargs)

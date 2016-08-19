@@ -1,9 +1,23 @@
 from abc import ABCMeta
 from collections import MutableMapping
 from collections import OrderedDict
+from typing import Any
 
 from venom.fields import FieldDescriptor
 from venom.utils import meta
+
+
+class _OneOf(object):
+    def __init__(self, *choices):
+        self.choices = choices
+
+    # TODO helper functions.
+
+    def which(self):
+        raise NotImplementedError
+
+    def get(self) -> Any:
+        pass
 
 
 class MessageMeta(ABCMeta):
@@ -87,16 +101,6 @@ class Message(MutableMapping, metaclass=MessageMeta):
         return '{}({})'.format(self.__meta__.name, ', '.join(parts))
 
 
-class _OneOf(object):
-    def __init__(self, *choices):
-        self.choices = choices
-
-    # TODO helper functions.
-
-    def which(self):
-        raise NotImplementedError
-
-
 def one_of(**choices):
     """
 
@@ -111,3 +115,7 @@ def one_of(**choices):
 
     """
     return _OneOf(choices)
+
+
+class Empty(Message):
+    pass
