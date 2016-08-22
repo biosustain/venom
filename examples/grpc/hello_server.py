@@ -2,7 +2,7 @@ import time
 
 from venom.rpc.comms.grpc import create_server
 from venom.rpc.method import rpc
-from .hello import HelloRequest, HelloResponse
+from hello import HelloRequest, HelloResponse
 from venom.rpc import Service, Venom
 
 

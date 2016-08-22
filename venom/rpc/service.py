@@ -52,3 +52,12 @@ class Service(object, metaclass=ServiceMeta):
     class Meta:
         name = None
         messages = ()
+
+
+# TODO support services implementing a remote interface:
+# class HelloService(Service):
+#     class Meta:
+#         remote = HelloRemote
+#
+#     def say_hello(self, request: HelloRequest) -> HelloResponse:
+#         pass

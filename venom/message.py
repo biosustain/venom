@@ -1,7 +1,7 @@
 from abc import ABCMeta
 from collections import MutableMapping
 from collections import OrderedDict
-from typing import Any
+from typing import Any, Dict
 
 from venom.fields import FieldDescriptor
 from venom.utils import meta
@@ -119,3 +119,7 @@ def one_of(**choices):
 
 class Empty(Message):
     pass
+
+
+def message_factory(name: str, fields: Dict[str, FieldDescriptor]) -> type(Message):
+    return type(name, (Message,), fields)

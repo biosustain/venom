@@ -1,13 +1,17 @@
-from asyncio import Future
+
 from functools import partial
 
 import asyncio
-from grpc.beta import implementations
-from grpc.framework.interfaces.face import utilities
 
 from venom.rpc import Remote
 from venom.rpc.comms import BaseClient
 from venom.serialization import WireFormat, JSON
+
+try:
+    from grpc.beta import implementations
+    from grpc.framework.interfaces.face import utilities
+except ImportError:
+    raise RuntimeError("You must install the 'grpcio' package to use this part of Venom")
 
 
 def create_server(venom: 'venom.rpc.Venom',
@@ -28,22 +32,19 @@ def create_server(venom: 'venom.rpc.Venom',
     request_deserializers = {}
     response_serializers = {}
     method_implementations = {}
-    for service in venom:
-        if isinstance(service, Remote):
-            continue
 
-        def grpc_unary_unary(view, request, context, *, loop):
-            future = asyncio.ensure_future(view(request), loop=loop)
-            loop.run_until_complete(future)
-            return future.result()
+    def grpc_unary_unary(view, request, context, *, loop):
+        future = asyncio.ensure_future(view(request), loop=loop)
+        loop.run_until_complete(future)
+        return future.result()
 
-        for rpc in service.__methods__.values():
-            grpc_name = (service.__meta__.name, rpc.name)
-            request_deserializers[grpc_name] = partial(wire_format.unpack, rpc.request)
-            response_serializers[grpc_name] = partial(wire_format.pack, rpc.response)
-            method_implementations[grpc_name] = utilities.unary_unary_inline(partial(grpc_unary_unary,
-                                                                                     rpc.as_view(venom, service),
-                                                                                     loop=loop))
+    for service, rpc in venom.iter_methods():
+        grpc_name = (service.__meta__.name, rpc.name)
+        request_deserializers[grpc_name] = partial(wire_format.unpack, rpc.request)
+        response_serializers[grpc_name] = partial(wire_format.pack, rpc.response)
+        method_implementations[grpc_name] = utilities.unary_unary_inline(partial(grpc_unary_unary,
+                                                                                 rpc.as_view(venom, service),
+                                                                                 loop=loop))
 
     server_options = implementations.server_options(request_deserializers=request_deserializers,
                                                     response_serializers=response_serializers,

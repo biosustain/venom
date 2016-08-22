@@ -1,6 +1,6 @@
 import asyncio
 
-from examples.grpc.hello import HelloRemote, HelloRequest
+from hello import HelloRemote, HelloRequest
 from venom.rpc.comms.grpc import Client
 
 client = Client(HelloRemote, 'localhost', 50051)

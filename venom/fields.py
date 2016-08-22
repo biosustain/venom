@@ -74,6 +74,13 @@ def String(*checks: StringCheck,
     return Field(str, *checks, **kwargs)
 
 
+def Boolean(**kwargs) -> Field[bool]:
+    return Field(bool, **kwargs)
+
+
+Bool = Boolean
+
+
 def URI(*checks: StringCheck, **kwargs) -> Field[str]:
     return String(*checks, format='uri', **kwargs)
 

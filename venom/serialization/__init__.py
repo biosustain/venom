@@ -26,12 +26,12 @@ class JSON(WireFormat):
     def __init__(self):
         pass
 
-    def encode(self, message: Message) -> Any:
+    def encode(self, message: Message, cls: type(Message) = None) -> Any:
 
         # TODO special encoding/decoding for e.g. Value, Empty messages
 
         msg = {}
-        for key, field in message.__fields__.items():
+        for key, field in (cls or message).__fields__.items():
             if field.attribute in message:
                 msg[field.attribute] = self.encode_field(message[field.attribute], field)
         return msg
@@ -97,7 +97,13 @@ class JSON(WireFormat):
         return instance
 
     def pack(self, fmt: type(Message), message: Message) -> bytes:
-        return json.dumps(self.encode(message)).encode('utf-8')
+        return json.dumps(self.encode(message, cls=fmt)).encode('utf-8')
 
     def unpack(self, fmt: type(Message), value: bytes):
+        # TODO catch JSONDecodeError
         return self.decode(json.loads(value.decode('utf-8')), cls=fmt)
+
+    # packb and pack
+
+
+# TODO special URL wire format for decoding request parameters

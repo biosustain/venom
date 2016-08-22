@@ -1,4 +1,4 @@
-from typing import Iterable, Union
+from typing import Iterable, Union, Tuple
 from weakref import WeakKeyDictionary
 
 from venom.rpc.remote import Remote
@@ -67,6 +67,14 @@ class Venom(object):
             else:
                 self._instances[context] = {cls: instance}
         return instance
+
+    def iter_methods(self) -> Iterable[Tuple[type(Service), 'venom.rpc.method.BaseMethod']]:
+        for service in self._services.values():
+            if isinstance(service, Remote):
+                continue
+
+            for rpc in service.__methods__.values():
+                yield service, rpc
 
     def __iter__(self) -> Iterable[type(Service)]:
         return iter(self._services.values())

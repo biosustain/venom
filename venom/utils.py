@@ -24,3 +24,7 @@ def meta(bases, members, meta_name='Meta'):
         changes = _meta_obj_to_dict(members[meta_name])
         meta_.update(changes)
     return meta_, changes
+
+
+def upper_camelcase(s: str) -> str:
+    return s.title().replace('_', '')
