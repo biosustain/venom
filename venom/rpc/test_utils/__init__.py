@@ -67,16 +67,16 @@ def sync_decorator(fn):
     return wrapper
 
 
-class TestCaseMeta(type):
+class _TestCaseMeta(type):
     def __new__(mcs, name, bases, members):
         for key, value in members.items():
             if key.startswith('test_') and asyncio.iscoroutinefunction(value):
                 members[key] = sync_decorator(value)
 
-        return super(TestCaseMeta, mcs).__new__(mcs, name, bases, members)
+        return super(_TestCaseMeta, mcs).__new__(mcs, name, bases, members)
 
 
-class AioTestCase(unittest.TestCase, metaclass=TestCaseMeta):
+class AioTestCase(unittest.TestCase, metaclass=_TestCaseMeta):
     """
     A custom unittest.TestCase that converts all tests that are coroutine functions into synchronous tests.
     """
