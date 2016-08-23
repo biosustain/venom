@@ -17,7 +17,7 @@ class _OneOf(object):
         raise NotImplementedError
 
     def get(self) -> Any:
-        pass
+        raise NotImplementedError
 
 
 class MessageMeta(ABCMeta):
@@ -45,6 +45,7 @@ class MessageMeta(ABCMeta):
 
 
 class Message(MutableMapping, metaclass=MessageMeta):
+    __slots__ = ('_values',)
     __fields__ = None  # type: Dict[str, Field]
     __meta__ = None  # type: Dict[str, Any]
 
@@ -101,7 +102,7 @@ class Message(MutableMapping, metaclass=MessageMeta):
         return '{}({})'.format(self.__meta__.name, ', '.join(parts))
 
 
-def one_of(**choices):
+def one_of(*choices):
     """
 
     Usage:::

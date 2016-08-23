@@ -1,5 +1,3 @@
-
-
 from venom.fields import String, Boolean
 from venom.message import Message
 from venom.rpc import Remote

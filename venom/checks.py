@@ -31,9 +31,17 @@ class Check(object):
 
         return self._check(instance)
 
+    def schema(self):
+        """
+        A JSON schema object describing this check, if possible.
+
+        :return:
+        """
+        return {}
+
 
 # ----------------------------------------------------------------------------------------------------------------------
-# JSON Schema validation for any instance type
+# JSON PropertySchema validation for any instance type
 # ----------------------------------------------------------------------------------------------------------------------
 
 T = TypeVar('T')
@@ -50,9 +58,11 @@ class Choice(Generic[T], Check):
     def _check(self, instance):
         return instance in self.choices
 
+    def schema(self):
+        return {"enum": self.choices}
 
 # ----------------------------------------------------------------------------------------------------------------------
-# JSON Schema validation for "object"
+# JSON PropertySchema validation for "object"
 # ----------------------------------------------------------------------------------------------------------------------
 
 # TODO
@@ -82,18 +92,24 @@ class MinProperties(Check):
         super().__init__(type_=dict)
         self.value = value
 
+    def schema(self):
+        return {"minProperties": self.value}
+
 
 class MaxProperties(Check):
     def __init__(self, value: int) -> None:
         super().__init__(type_=dict)
         self.value = value
 
+    def schema(self):
+        return {"maxProperties": self.value}
+
 
 MapCheck = Union[MinProperties, MaxProperties]
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-# JSON Schema validation for "number" and "integer"
+# JSON PropertySchema validation for "number" and "integer"
 # ----------------------------------------------------------------------------------------------------------------------
 
 class Between(Check):
@@ -109,11 +125,26 @@ class Between(Check):
         self.exclusive_minimum = exclusive_minimum
         self.exclusive_maximum = exclusive_maximum
 
+    def schema(self):
+        schema = {
+            "minimum": self.minimum,
+            "maximum": self.maximum
+        }
+
+        if self.exclusive_minimum:
+            schema["exclusiveMinimum"] = True
+        if self.exclusive_maximum:
+            schema["exclusiveMaximum"] = True
+        return schema
+
 
 class GreaterThan(Check):
     def __init__(self, value: Union[int, float]) -> None:
         super().__init__(type_=(int, float))
         self.value = value
+
+    def schema(self):
+        return {"minimum": self.value, "exclusiveMinimum": True}
 
 
 class LessThan(Check):
@@ -121,17 +152,25 @@ class LessThan(Check):
         super().__init__(type_=(int, float))
         self.value = value
 
+    def schema(self):
+        return {"maximum": self.value, "exclusiveMinimum": True}
 
 class GreaterThanEqual(Check):
     def __init__(self, value: Union[int, float]) -> None:
         super().__init__(type_=(int, float))
         self.value = value
 
+    def schema(self):
+        return {"minimum": self.value}
+
 
 class LessThanEqual(Check):
     def __init__(self, value: Union[int, float]) -> None:
         super().__init__(type_=(int, float))
         self.value = value
+
+    def schema(self):
+        return {"maximum": self.value}
 
 
 GT = GreaterThan
@@ -143,7 +182,7 @@ NumberCheck = Union['FormatCheck', Between, LessThan, LessThanEqual, GreaterThan
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-# JSON Schema validation for "string"
+# JSON PropertySchema validation for "string"
 # ----------------------------------------------------------------------------------------------------------------------
 
 class MinLength(Check):
@@ -151,8 +190,8 @@ class MinLength(Check):
         super().__init__(type_=str)
         self.value = value
 
-        # def __hash__(self):
-        #     return hash(self.value)
+    def schema(self):
+        return {"minLength": self.value}
 
 
 class MaxLength(Check):
@@ -160,8 +199,8 @@ class MaxLength(Check):
         super().__init__(type_=str)
         self.value = value
 
-        # def __hash__(self):
-        #     return hash(self.value)
+    def schema(self):
+        return {"maxLength": self.value}
 
 
 class PatternCheck(Check):
@@ -178,18 +217,24 @@ class PatternCheck(Check):
         self._pattern_re = re.compile(pattern)
         self._pattern = pattern
 
+    def schema(self):
+        return {"pattern": self.pattern}
+
 
 class FormatCheck(Check):
     def __init__(self, format_: str) -> None:
         super().__init__(type_=(str, int, float))
         self.format = format_
 
+    def schema(self):
+        return {"format": self.format}
+
 
 StringCheck = Union[FormatCheck, Choice[str], MinLength, MaxLength]
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-# JSON Schema validation for "array"
+# JSON PropertySchema validation for "array"
 # ----------------------------------------------------------------------------------------------------------------------
 
 class MinItems(Check):
@@ -197,17 +242,26 @@ class MinItems(Check):
         super().__init__(type_=(tuple, list, set))
         self.value = value
 
+    def schema(self):
+        return {"minItems": self.value}
+
 
 class MaxItems(Check):
     def __init__(self, value: int) -> None:
         super().__init__(type_=(tuple, list, set))
         self.value = value
 
+    def schema(self):
+        return {"maxItems": self.value}
+
 
 class UniqueItems(Check):
     def __init__(self, unique: bool = True) -> None:
         super().__init__(type_=(tuple, list, set))
         self.unique = unique
+
+    def schema(self):
+        return {"unique": self.unique}
 
 
 RepeatCheck = Union[MinItems, MaxItems, UniqueItems]

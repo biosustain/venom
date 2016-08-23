@@ -1,9 +1,10 @@
-import json
+import ujson
 from abc import ABCMeta, abstractmethod
 from typing import Any, Union
 
-from venom.fields import FieldDescriptor, RepeatField, MapField, ConverterField, Field
-from venom.message import Message, Empty
+from venom.fields import RepeatField, MapField, ConverterField, Field
+from venom.message import Message
+from venom.schema.validator import JSONSchemaValidator
 from venom.types import float32, float64
 
 
@@ -23,8 +24,8 @@ class JSON(WireFormat):
     mime = 'application/json'
 
     # TODO support ujson and other encoders/decoders.
-    def __init__(self):
-        pass
+    def __init__(self, validator_cls=JSONSchemaValidator):
+        self._validator = validator_cls()
 
     def encode(self, message: Message, cls: type(Message) = None) -> Any:
 
@@ -41,26 +42,22 @@ class JSON(WireFormat):
         if value is None:
             return None
 
+        isinstance = lambda a, b: type(a) is b
+
         if isinstance(field, RepeatField):
             return [self.encode_field(item, field.items) for item in value]
-        if isinstance(field, MapField):
+        elif isinstance(field, MapField):
             return {k: self.encode_field(v, field.values) for k, v in value.items()}
-        if isinstance(field, ConverterField):
-            return self.encode(field.converter.format(value))
-
-        if issubclass(field.type, Message):
-            return self.encode(value)
+        elif isinstance(field, ConverterField):
+            return self.encode(field.converter.format(value), field.converter.wire)
+        elif issubclass(field.type, Message):
+            return self.encode(value, field.type)
 
         # assumes all is JSON from here
         return value
 
-    def decode(self, instance: Any, cls: type(Message)) -> Message:
-        # TODO schema validation here.
-
+    def _decode(self, instance: dict, cls: type(Message)) -> Message:
         # TODO special encoding/decoding for e.g. Value, Empty messages
-
-        if not isinstance(instance, dict):
-            raise ValueError()
 
         message = cls()
         for key, field in cls.__fields__.items():
@@ -74,12 +71,16 @@ class JSON(WireFormat):
         # TODO one_of() validation: simply picks first match.
         return message
 
+    def decode(self, instance: Any, cls: type(Message)) -> Message:
+        self._validator.validate(instance, cls)
+        return self._decode(instance, cls)
+
     def decode_field(self, instance: Any, field: Union[Field, MapField, RepeatField]):
         if instance is None:
             return None
 
+        isinstance = lambda a, b: type(a) is b
         if isinstance(field, RepeatField):
-            assert isinstance(instance, (set, list, tuple))
             return [self.decode_field(item, field.items) for item in instance]
         if isinstance(field, MapField):
             assert isinstance(instance, dict)
@@ -97,13 +98,15 @@ class JSON(WireFormat):
         return instance
 
     def pack(self, fmt: type(Message), message: Message) -> bytes:
-        return json.dumps(self.encode(message, cls=fmt)).encode('utf-8')
+        return ujson.dumps(self.encode(message, cls=fmt)).encode('utf-8')
 
     def unpack(self, fmt: type(Message), value: bytes):
         # TODO catch JSONDecodeError
-        return self.decode(json.loads(value.decode('utf-8')), cls=fmt)
+        return self.decode(ujson.loads(value.decode('utf-8')), cls=fmt)
 
-    # packb and pack
+        # packb and pack
 
 
 # TODO special URL wire format for decoding request parameters
+
+

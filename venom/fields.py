@@ -1,10 +1,12 @@
 from abc import ABCMeta
+from importlib import import_module
 from typing import Iterable, TypeVar, Generic, Any, Tuple, Union
 
 from venom.checks import Check, FormatCheck, StringCheck, Choice, PatternCheck, MaxLength, GreaterThanEqual, \
     LessThanEqual, RepeatCheck, UniqueItems, MapCheck
 
 from venom.types import int32, int64
+from venom.utils import cached_property
 
 T = TypeVar('T')
 
@@ -28,21 +30,30 @@ class FieldDescriptor(Generic[T], metaclass=ABCMeta):
         instance[self.attribute] = value
 
 
-
 class Field(FieldDescriptor):
     def __init__(self,
-                 type_: T,  # Type[T]
+                 type_: Union[T, str],  # Type[T]
                  *checks: Tuple[Check],
                  attribute: str = None,
                  optional: bool = True,
                  default: Any = None,
                  **options) -> None:
-        self.type = type_
+        self._type = type_
         self.checks = checks
         self.attribute = attribute
         self.optional = optional
         self.default = default
         self.options = options
+
+    @cached_property
+    def type(self) -> T:
+        if isinstance(self._type, str):
+            module_name, class_name = self._type.rsplit('.', 1)
+            module = import_module(module_name)
+            return getattr(module, class_name)
+        return self._type
+
+# TODO Constant field type
 
 
 class ConverterField(Field):
@@ -124,9 +135,15 @@ class RepeatField(Generic[CT], FieldDescriptor):
                  optional: bool = False) -> None:
         self.items = items
         # TODO need to enforce that there is only one check of a certain type
-        self.repeat_container_checks = checks
+        self.checks = checks
         self.attribute = attribute
         self.optional = optional
+
+    # TODO address = AddressBook.addresses.add()
+    # def add(self):
+    #     if not issubclass(self.items.type, Message):
+    #
+
 
 
 class MapField(Generic[CT], FieldDescriptor):
@@ -138,7 +155,7 @@ class MapField(Generic[CT], FieldDescriptor):
         self.keys = String()
         self.values = values
         # TODO need to enforce that there is only one check of a certain type
-        self.map_container_checks = checks
+        self.checks = checks
         self.attribute = attribute
         self.optional = optional
 
