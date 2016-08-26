@@ -1,7 +1,7 @@
-
 from functools import partial
 
 import asyncio
+from threading import Thread
 
 from venom.rpc import Remote
 from venom.rpc.comms import BaseClient
@@ -24,7 +24,7 @@ def create_server(venom: 'venom.rpc.Venom',
                   loop=None):
 
     if loop is None:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.new_event_loop()
 
     if wire_format is None:
         wire_format = JSON()
@@ -34,8 +34,8 @@ def create_server(venom: 'venom.rpc.Venom',
     method_implementations = {}
 
     def grpc_unary_unary(view, request, context, *, loop):
-        future = asyncio.ensure_future(view(request), loop=loop)
-        loop.run_until_complete(future)
+        future = asyncio.run_coroutine_threadsafe(view(request), loop=loop)
+        # TODO use context.timeout
         return future.result()
 
     for service, rpc in venom.iter_methods():
@@ -51,6 +51,14 @@ def create_server(venom: 'venom.rpc.Venom',
                                                     thread_pool=pool, thread_pool_size=pool_size,
                                                     default_timeout=default_timeout,
                                                     maximum_timeout=maximum_timeout)
+
+    def event_loop_runner(loop):
+        asyncio.set_event_loop(loop)
+        loop.run_forever()
+
+    t = Thread(target=event_loop_runner, args=(loop,))
+    t.daemon = True
+    t.start()
 
     return implementations.server(method_implementations, options=server_options)
 

@@ -3,7 +3,7 @@ import asyncio
 from hello import HelloRemote, HelloRequest
 from venom.rpc.comms.grpc import Client
 
-client = Client(HelloRemote, 'localhost', 50051)
+client = Client(HelloRemote, 'localhost', 50053)
 
 async def request_say_hello(name):
     response = await client.invoke(HelloRemote.say_hello, HelloRequest(name=name))

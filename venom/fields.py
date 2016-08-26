@@ -30,7 +30,7 @@ class FieldDescriptor(Generic[T], metaclass=ABCMeta):
         instance[self.attribute] = value
 
 
-class Field(FieldDescriptor):
+class Field(Generic[T], FieldDescriptor):
     def __init__(self,
                  type_: Union[T, str],  # Type[T]
                  *checks: Tuple[Check],
