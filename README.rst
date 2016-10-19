@@ -58,5 +58,5 @@ An unordered list of potential future features:
  - OpenAPI (Swagger) schema service
  - Client generation from schema
 
-Streamed responses would use Python 3.6 coroutine generators
+Streamed responses would use Python 3.6 asynchronous generators
 
