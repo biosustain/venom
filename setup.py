@@ -4,7 +4,7 @@ import codecs
 from setuptools import setup, find_packages
 
 setup(
-    name='Venom',
+    name='venom',
     version='1.0.0a1',
     packages=find_packages(exclude=['*tests*']),
     url='https://github.com/biosustain/venom',
@@ -16,11 +16,10 @@ setup(
     test_suite='nose.collector',
     tests_require=[
         'aiohttp',
+        'ujson',
         'nose'
     ],
-    install_requires=[
-
-    ],
+    install_requires=[],
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Environment :: Web Environment',
@@ -36,7 +35,7 @@ setup(
     zip_safe=False,
     extras_require={
         'docs': ['sphinx'],
-        'aiohttp': ['aiohttp'],
+        'aiohttp': ['aiohttp', 'ujson'],
         'grpc': ['grpcio'],
         'zmq': ['pyzmq'],
     }
