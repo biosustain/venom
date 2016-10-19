@@ -1,17 +1,17 @@
-from venom.fields import String, Boolean
+from venom.fields import String, Bool
 from venom.message import Message
-from venom.rpc import Remote
-from venom.rpc.remote import RPC
+from venom.rpc import Stub
+from venom.rpc.stub import RPC
 
 
 class HelloRequest(Message):
     name = String()
-    shout = Boolean()
+    shout = Bool()
 
 
 class HelloResponse(Message):
     message = String()
 
 
-class HelloRemote(Remote):
+class HelloStub(Stub):
     say_hello = RPC.http.POST('/greet/{name}', HelloRequest, HelloResponse)

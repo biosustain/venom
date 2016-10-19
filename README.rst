@@ -11,10 +11,9 @@ Road map
 A list of major features required for the first release:
 
  - Schema validation
- - Error handling
  - Documentation
 
-An unordered list of future features:
+An unordered list of potential future features:
 
  - Streaming requests & responses with ZMQ
  - Unary HTTP/1 implementation with "aiohttp"
@@ -28,4 +27,7 @@ An unordered list of future features:
  - Protocol Buffer support
  - JSON Hyper-Schema service
  - OpenAPI (Swagger) schema service
- - Remote generation from schema
+ - Client generation from schema
+
+Streamed responses would use Python 3.6 coroutine generators
+

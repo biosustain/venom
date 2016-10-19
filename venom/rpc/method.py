@@ -1,125 +1,135 @@
 import enum
 import re
-import types
-from asyncio import iscoroutine, Future
-from collections import OrderedDict
-from functools import partial
-from functools import wraps
-from typing import Sequence, Callable, Any, Optional
+from types import MethodType
+from typing import Callable, Any, Type, Union, Sequence, Set
 
-from venom.message import Message, Empty, message_factory
-from venom.utils import AttributeDict, upper_camelcase
-
-_RULE_PARAMETER_RE = re.compile('\{([^}]+)\}')
-
-# FIXME: is an Awaitable, not Callable
-UnaryUnaryView = Callable[[Message], Message]
+from venom.message import Message
+from venom.rpc.inspection import magic
+from venom.util import AttributeDict
 
 
-class BaseMethod(object):
+_RULE_PARAMETER_RE = re.compile('\{([^}:]+)(:[^}]*)?\}')
+
+
+class Method(object):
     def __init__(self,
-                 request: type(Message),
-                 response: type(Message),
+                 request: Type[Message] = None,
+                 response: Type[Message] = None,
                  *,
                  name: str = None,
-                 http_method: 'HTTPMethod' = None,
+                 http_verb: 'HTTPVerb' = None,
                  http_rule: str = None,
                  http_status: int = 200,
-                 **options):
-        """
-
-
-        :param request:
-        :param response:
-        :param name:
-        :param http_method:
-        :param str http_rule: either `''` or a string beginning with `'/'` representing the route
-        :param http_status:
-        :param options:
-        """
+                 **options) -> None:
         self.request = request
         self.response = response
         self.name = name
         self._http_rule = http_rule
-        self._http_method = http_method
-        self.http_success = http_status
+        self._http_verb = http_verb
+        self.http_status = http_status
         self.options = AttributeDict(options)
 
-    def http_rule(self):
-        if self._http_rule is None:
-            return '/' + self.name.lower().replace('_', '-')
-        return self._http_rule
+    def register(self, service: Type['venom.rpc.service.Service'], name: str) -> 'Method':
+        """
+        A hook that allows returning a customized :class:`Method` instance. For instance, the service definition may
+        be used to fill in the blanks on what the `request` and `response` attributes should be.
 
-    def http_rule_params(self) -> Sequence[str]:
-        return tuple(m.group(1) for m in re.finditer(_RULE_PARAMETER_RE, self.http_rule()))
+        :param type service:
+        :param str name:
+        :return:
+        """
+        if self.name is None:
+            self.name = name
+        return self
+
+    def invoke(self, instance: 'venom.rpc.service.Service', request: Message):
+        raise NotImplementedError
 
     @property
-    def http_method(self):
-        if self._http_method is None:
-            return HTTPMethod.POST
-        return self._http_method
+    def http_verb(self) -> 'HTTPVerb':
+        if self._http_verb is None:
+            return HTTPVerb.POST
+        return self._http_verb
 
-    # TODO cache result
-    def http_request_body(self) -> Optional[type(Message)]:
-        if self.http_method not in (HTTPMethod.POST, HTTPMethod.PATCH, HTTPMethod.PUT):
-            return None
+    def http_rule(self, service: 'venom.Service') -> str:
+        service_http_rule = '/' + service.__meta__.name.lower().replace('_', '-')
+        if self._http_rule is None:
+            return service_http_rule + '/' + self.name.lower().replace('_', '-')
+        return service_http_rule + self._http_rule
 
-        http_rule_params = self.http_rule_params()
-
-        if not http_rule_params:
-            # TODO also return request if http_rule_params are not used in the request message for some reason
-            return self.request
-
-        return message_factory(upper_camelcase(self.name) + 'RequestBody', OrderedDict((
-            (name, field) for name, field in self.request.__fields__.items()
-            if name not in http_rule_params
-        )))
+    def http_rule_params(self) -> Set[str]:
+        return set(m.group(1) for m in re.finditer(_RULE_PARAMETER_RE, self._http_rule or ''))
 
 
-class Method(BaseMethod):
-    def __init__(self, fn: Callable, **kwargs):
-        super().__init__(**kwargs)
-        self._fn = fn
+class ServiceMethod(Method):
+    def __init__(self,
+                 func: Callable[..., Any],
+                 request: Type[Message] = None,
+                 response: Type[Message] = None,
+                 name: str = None,
+                 invokable_func: Callable[['venom.rpc.service.Service', Message], Message] = None,
+                 **kwargs) -> None:
+        super(ServiceMethod, self).__init__(request, response, name=name, **kwargs)
+        self._func = func
+        if invokable_func:
+            self._invokable_func = invokable_func
+        else:
+            self._invokable_func = func
 
-    def __get__(self, instance, owner):
+    # NOTE: typing does not understand descriptors yet. There will be (inaccurate) warnings because the IDE
+    #       cannot resolve this.
+    def __get__(self, instance, owner) -> Union[Method, MethodType]:
         if instance is None:
             return self
         else:
-            return types.MethodType(self._fn, instance)
+            return MethodType(self._func, instance)
 
     def __set__(self, instance, value):
         raise AttributeError
 
-    def as_view(self, venom: 'venom.rpc.Venom', service: type) -> UnaryUnaryView:
-        fn = self._fn
+    def register(self, service: 'venom.rpc.service.ServiceType', name: str):
+        # TODO get request, response from stub.
 
-        # TODO stream requests/responses
-        @wraps(fn)
-        async def view(request: type(Message)):
-            instance = venom.get_instance(service)
+        if self.name is None:
+            self.name = name
 
-            # TODO handle Empty message
-            if type(request) == Empty:
-                response = fn(instance)
-            else:
-                response = fn(instance, request)
+        stub = service.__meta__.stub
+        if stub:
+            try:
+                stub_method = stub.__methods__[name]
+                self.request = self.request or stub_method.request
+                self.response = self.response or stub_method.response
+            except KeyError:
+                pass  # method not specified in stub
 
-            if iscoroutine(response) or isinstance(response, Future):
-                response = await response
+        converters = [c() if isinstance(c, type) else c for c in service.__meta__.converters]
+        magic_func = magic(self._func,
+                           request=self.request,
+                           response=self.response,
+                           converters=converters)
 
-            return response
-        return view
+        return self.__class__(self._func,
+                              request=magic_func.request,
+                              response=magic_func.response,
+                              name=name,
+                              invokable_func=magic_func.invokable,
+                              http_rule=self._http_rule,
+                              http_verb=self._http_verb,
+                              http_status=self.http_status,
+                              **self.options)
+
+    def invoke(self, instance: 'venom.service.Service', request: Message):
+        return self._invokable_func(instance, request)
 
 
-class MagicMethod(Method):
-    """
-    A method implementation that does not require a callable with (request) -> response format. Request messages are
-    automatically generated or decomposed into keyword arguments.
-    """
-    pass  # TODO
+def rpc(*args, method_cls=ServiceMethod, **kwargs):
+    if len(args) == 1 and len(kwargs) == 0 and callable(args[0]):
+        return method_cls(args[0])
+    else:
+        return lambda fn: method_cls(fn, *args, **kwargs)
 
 
-class HTTPMethod(enum.Enum):
+class HTTPVerb(enum.Enum):
     GET = 'GET'
     PUT = 'PUT'
     POST = 'POST'
@@ -127,76 +137,20 @@ class HTTPMethod(enum.Enum):
     DELETE = 'DELETE'
 
 
-# TODO rpc and rpc.GET, POST... decorators
-
-def rpc(*args, **kwargs):
-    if len(args) == 1 and len(kwargs) == 0 and callable(args[0]):
-        return Method(args[0])
-    else:
-        return lambda fn: Method(fn, *args, **kwargs)
+def http(verb: HTTPVerb, rule=None, *args, **kwargs):
+    return rpc(*args, http_verb=verb, http_rule=rule, **kwargs)
 
 
-def http(method: HTTPMethod, rule=None, **kwargs):
-    return rpc(http_method=method, http_rule=rule, **kwargs)
-
-
-def _http_method_decorator(http_method):
-    def decorator(*args, **kwargs):
+def _http_method_decorator(verb):
+    def decorator(*args, method_cls=ServiceMethod, **kwargs):
         if len(args) == 1 and len(kwargs) == 0 and callable(args[0]):
-            return Method(args[0], http_method=http_method)
+            return method_cls(args[0], http_verb=verb)
         else:
-            return http(http_method, *args, **kwargs)
+            return http(verb, *args, method_cls=method_cls, **kwargs)
 
-    decorator.__name__ = http_method.value
+    decorator.__name__ = verb.value
     return decorator
 
 
-for _method in HTTPMethod:
-    setattr(http, _method.name, _http_method_decorator(_method))
-
-
-# class Route(Method):
-#     GET = None  # type: Callable[Any, Route]
-#     PUT = None  # type: Callable[Any, Route]
-#     POST = None  # type: Callable[Any, Route]
-#     PATCH = None  # type: Callable[Any, Route]
-#     DELETE = None  # type: Callable[Any, Route]
-#
-#     def __init__(self,
-#                  method: HTTPMethod,
-#                  fn,
-#                  rule: str = None,
-#                  relation: str = None,
-#                  *,
-#                  response_status: int = 200,
-#                  **kwargs):
-#         super().__init__(fn, **kwargs)
-#         self._rule = rule
-#         self._relation = relation
-#         self.http_method = method
-#         self.http_response_status = response_status
-#
-#     @property
-#     def rule_parameter_names(self) -> Sequence[str]:
-#         if self._rule is None:
-#             return []
-#         return [m.group(1) for m in re.finditer(_RULE_PARAMETER_RE, self._rule)]
-#
-#     # @property
-#     # def request_parameter_locations(self):
-#     #     pass
-#
-#
-# def _route_decorator(method):
-#     @classmethod
-#     def decorator(cls, *args, **kwargs):
-#         if len(args) == 1 and len(kwargs) == 0 and callable(args[0]):
-#             return cls(method, args[0])
-#         else:
-#             return lambda f: cls(method, f, *args, **kwargs)
-#
-#     decorator.__name__ = method.name
-#     return decorator
-#
-# for _method in HTTPMethod:
-#     setattr(Route, _method.name, _route_decorator(_method))
+for _verb in HTTPVerb:
+    setattr(http, _verb.name, _http_method_decorator(_verb))

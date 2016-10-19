@@ -8,9 +8,9 @@ from venom.rpc import Service, Venom
 
 
 class HelloService(Service):
-    @rpc(request=HelloRequest, response=HelloResponse)
+    @rpc
     async def say_hello(self, request: HelloRequest) -> HelloResponse:
-        await asyncio.sleep(5)
+        await asyncio.sleep(1)
         return HelloResponse(message="Hello, {}!".format(request.name))
 
 

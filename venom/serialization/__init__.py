@@ -1,112 +1,145 @@
-import ujson
 from abc import ABCMeta, abstractmethod
-from typing import Any, Union
+from functools import partial
+from json import JSONDecodeError
+from typing import Type, TypeVar, Generic, Callable, Union, Any, Tuple, Iterable
 
-from venom.fields import RepeatField, MapField, ConverterField, Field
-from venom.message import Message
-from venom.schema.validator import JSONSchemaValidator
-from venom.types import float32, float64
+from venom import Empty
+from venom import Message
+from venom.exceptions import ValidationError
+from venom.fields import Field, ConverterField, RepeatField, FieldDescriptor
 
 
 class WireFormat(metaclass=ABCMeta):
     mime = None  # type: str
 
+    def __new__(cls, fmt: Type[Message]):
+        try:
+            return fmt.__meta__.wire_formats[cls]
+        except KeyError:
+            instance = super(WireFormat, cls).__new__(cls)
+            instance.__init__(fmt)
+            return instance
+
+    def __init__(self, fmt: Type[Message]):
+        self._cache_wire_format(fmt)
+        self._format = fmt
+
+    def _cache_wire_format(self, fmt):
+        fmt.__meta__.wire_formats[self.__class__] = self
+
+    @classmethod
+    def _get_wire_format(cls, fmt: Type[Message]):
+        try:
+            return fmt.__meta__.wire_formats[cls]
+        except KeyError:
+            return cls(fmt)
+
     @abstractmethod
-    def pack(self, fmt: type(Message), message: Message) -> bytes:
+    def pack(self, message: Message) -> bytes:
         pass
 
     @abstractmethod
-    def unpack(self, fmt: type(Message), buffer: bytes) -> Message:
+    def unpack(self, buffer: bytes, skip: Iterable[str] = ()) -> Message:
         pass
+
+
+try:
+    import ujson as json
+except ImportError:
+    import json
+
+
+JSONPrimitive = Union[str, int, float, bool]
 
 
 class JSON(WireFormat):
     mime = 'application/json'
 
-    # TODO support ujson and other encoders/decoders.
-    def __init__(self, validator_cls=JSONSchemaValidator):
-        self._validator = validator_cls()
+    def __init__(self, fmt: Type[Message]):
+        super().__init__(fmt)
+        self.field_encoders = {field.attribute: self._field_encoder(field) for field in fmt.__fields__.values()}
+        self.field_decoders = [(field.attribute, self._field_decoder(field)) for field in fmt.__fields__.values()]
 
-    def encode(self, message: Message, cls: type(Message) = None) -> Any:
-
-        # TODO special encoding/decoding for e.g. Value, Empty messages
-
-        msg = {}
-        for key, field in (cls or message).__fields__.items():
-            if field.attribute in message:
-                msg[field.attribute] = self.encode_field(message[field.attribute], field)
-        return msg
-
-    def encode_field(self, value: Any, field: Union[Field, MapField, RepeatField]):
-        # XXX value should never be none.
-        if value is None:
-            return None
-
-        isinstance = lambda a, b: type(a) is b
-
-        if isinstance(field, RepeatField):
-            return [self.encode_field(item, field.items) for item in value]
-        elif isinstance(field, MapField):
-            return {k: self.encode_field(v, field.values) for k, v in value.items()}
-        elif isinstance(field, ConverterField):
-            return self.encode(field.converter.format(value), field.converter.wire)
-        elif issubclass(field.type, Message):
-            return self.encode(value, field.type)
-
-        # assumes all is JSON from here
+    @staticmethod
+    def _cast(type_: type, value: Any):
+        # TODO JSON type names, i.e. object instead of dict, integer instead of int etc.
+        if type(value) != type_:
+            raise ValidationError("{} is not of type '{}'".format(repr(value), type_.__name__))
         return value
 
-    def _decode(self, instance: dict, cls: type(Message)) -> Message:
-        # TODO special encoding/decoding for e.g. Value, Empty messages
+    @staticmethod
+    def _cast_number(value: Any):
+        if type(value) not in (int, float):
+            raise ValidationError("{} is not a number".format(value))
+        return float(value)
 
-        message = cls()
-        for key, field in cls.__fields__.items():
-            if field.attribute not in instance:
-                if not field.optional:
-                    raise ValueError()
-            else:
-                message[field.attribute] = self.decode_field(instance[field.attribute], field)
-
-        # NOTE additional properties are simply ignored for forward compatibility.
-        # TODO one_of() validation: simply picks first match.
-        return message
-
-    def decode(self, instance: Any, cls: type(Message)) -> Message:
-        self._validator.validate(instance, cls)
-        return self._decode(instance, cls)
-
-    def decode_field(self, instance: Any, field: Union[Field, MapField, RepeatField]):
-        if instance is None:
-            return None
-
-        isinstance = lambda a, b: type(a) is b
-        if isinstance(field, RepeatField):
-            return [self.decode_field(item, field.items) for item in instance]
-        if isinstance(field, MapField):
-            assert isinstance(instance, dict)
-            return {key: self.decode_field(value, field.values) for key, value in instance.items()}
+    def _field_encoder(self, field: FieldDescriptor) -> Callable[[Any], JSONPrimitive]:
         if isinstance(field, ConverterField):
-            return field.converter.convert(self.decode(instance, field.converter.wire))
+            field_converter = field.converter
+            field_wire_format = self._get_wire_format(field_converter.wire)
+            return lambda value: field_wire_format.encode(field_converter.format(value))
+
+        if isinstance(field, RepeatField):
+            field_item_encoder = self._field_encoder(field.items)
+            return lambda lst: [field_item_encoder(item) for item in lst]
+
         if issubclass(field.type, Message):
-            return self.decode(instance, field.type)
+            field_wire_format = self._get_wire_format(field.type)
+            return lambda msg: field_wire_format.encode(msg)
+
+        # assume all is JSON from here
+        return lambda value: value
+
+    def _field_decoder(self, field: FieldDescriptor) -> Callable[[JSONPrimitive], Any]:
+        if isinstance(field, ConverterField):
+            field_converter = field.converter
+            field_wire_format = self._get_wire_format(field_converter.wire)
+            return lambda msg: field_converter.convert(field_wire_format.decode(msg))
+
+        if isinstance(field, RepeatField):
+            field_item_decoder = self._field_decoder(field.items)
+            return lambda lst: [field_item_decoder(item) for item in self._cast(list, lst)]
+
+        if issubclass(field.type, Message):
+            field_wire_format = self._get_wire_format(field.type)
+            return lambda msg: field_wire_format.decode(msg)
 
         # an integer (int) in JSON is also a number (float), so we convert here if necessary:
-        if type(instance) == int and field.type in (float, float32, float64):
-            return float(instance)
+        if field.type is float:
+            return self._cast_number
 
-        # assumes all is JSON from here
-        return instance
+        return partial(self._cast, field.type)
 
-    def pack(self, fmt: type(Message), message: Message) -> bytes:
-        return ujson.dumps(self.encode(message, cls=fmt)).encode('utf-8')
+    def encode(self, message: Message):
+        obj = {}
+        for attr, value in message.items():
+            obj[attr] = self.field_encoders[attr](value)
+        return obj
 
-    def unpack(self, fmt: type(Message), value: bytes):
-        # TODO catch JSONDecodeError
-        return self.decode(ujson.loads(value.decode('utf-8')), cls=fmt)
+    def decode(self, instance: Any, skip: Iterable[str] = ()) -> Message:
+        instance = self._cast(dict, instance)
+        msg = self._format()
 
-        # packb and pack
+        for attr, decode in self.field_decoders:
+            if attr in instance and attr not in skip:
+                try:
+                    msg[attr] = decode(instance[attr])
+                except ValidationError as e:
+                    e.path.insert(0, attr)
+                    raise e
+        return msg
 
+    def pack(self, message: Message) -> bytes:
+        if self._format is Empty:
+            return b''
+        return json.dumps(self.encode(message)).encode('utf-8')
 
-# TODO special URL wire format for decoding request parameters
+    def unpack(self, buffer: bytes, skip: Iterable[str] = ()):
+        # special case for 'Empty' message (may be 0-length/empty)
+        if self._format is Empty and len(buffer) == 0:
+            return self._format()
 
-
+        try:
+            return self.decode(json.loads(buffer.decode('utf-8')), skip)
+        except (ValueError, JSONDecodeError) as e:
+            raise ValidationError("Invalid JSON: {}".format(str(e)))

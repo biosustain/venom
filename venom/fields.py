@@ -2,11 +2,10 @@ from abc import ABCMeta
 from importlib import import_module
 from typing import Iterable, TypeVar, Generic, Any, Tuple, Union
 
-from venom.checks import Check, FormatCheck, StringCheck, Choice, PatternCheck, MaxLength, GreaterThanEqual, \
-    LessThanEqual, RepeatCheck, UniqueItems, MapCheck
+import collections
 
-from venom.types import int32, int64
-from venom.utils import cached_property
+from venom.util import cached_property
+
 
 T = TypeVar('T')
 
@@ -20,10 +19,10 @@ class FieldDescriptor(Generic[T], metaclass=ABCMeta):
         try:
             return instance[self.attribute]
         except KeyError:
-            if self.optional:
-                value = instance[self.attribute] = self.default
-                return value
-            raise AttributeError
+            return self.default()
+
+    def default(self):
+        return None
 
     # https://github.com/python/mypy/issues/244
     def __set__(self, instance: 'venom.message.Message', value: T):
@@ -33,150 +32,146 @@ class FieldDescriptor(Generic[T], metaclass=ABCMeta):
 class Field(Generic[T], FieldDescriptor):
     def __init__(self,
                  type_: Union[T, str],  # Type[T]
-                 *checks: Tuple[Check],
                  attribute: str = None,
-                 optional: bool = True,
                  default: Any = None,
                  **options) -> None:
         self._type = type_
-        self.checks = checks
+        self._default = default
         self.attribute = attribute
-        self.optional = optional
-        self.default = default
         self.options = options
+
+    def default(self):
+        if self._default is None:
+            return self.type()
+        return self._default
 
     @cached_property
     def type(self) -> T:
         if isinstance(self._type, str):
-            module_name, class_name = self._type.rsplit('.', 1)
-            module = import_module(module_name)
-            return getattr(module, class_name)
+            if '.' in self._type:
+                module_name, class_name = self._type.rsplit('.', 1)
+                module = import_module(module_name)
+                return getattr(module, class_name)
+
+            raise RuntimeError('Unable to resolve: {} in {}'.format(self._type, repr(self)))
         return self._type
 
-# TODO Constant field type
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            return False
+        return self.type == other.type and \
+               self.attribute == other.attribute and \
+               self.options == other.options
+
+    def __repr__(self):
+        return '{}({}, attribute={})'.format(self.__class__.__name__, self._type, repr(self.attribute))
 
 
 class ConverterField(Field):
     def __init__(self,
                  type_: T,  # Type[T]
-                 *checks: Tuple[Check],
                  converter: 'venom.converter.Converter' = None,
                  **kwargs) -> None:
-        super().__init__(self, converter.wire, *checks, **kwargs)
+        super().__init__(self, converter.wire, **kwargs)
         self.python = type_
         self.converter = converter
 
 
-def String(*checks: StringCheck,
-           choices: Iterable[str] = None,
-           max_length: int = None,
-           format: str = None,
-           pattern: str = None,
-           **kwargs) -> Field[str]:
-    if choices is not None:
-        checks += Choice(choices),
-    if format is not None:
-        checks += FormatCheck(format),
-    if pattern is not None:
-        checks += PatternCheck(pattern),
-    if max_length is not None:
-        checks += MaxLength(max_length),
-
-    return Field(str, *checks, **kwargs)
+def String(**kwargs) -> Field[str]:
+    return Field(str, **kwargs)
 
 
-def Boolean(**kwargs) -> Field[bool]:
+def Bool(**kwargs) -> Field[bool]:
     return Field(bool, **kwargs)
 
 
-Bool = Boolean
+def Int32(**kwargs) -> Field[int]:
+    return Field(int, **kwargs)
 
 
-def URI(*checks: StringCheck, **kwargs) -> Field[str]:
-    return String(*checks, format='uri', **kwargs)
+def Int64(**kwargs) -> Field[int]:
+    return Field(int, **kwargs)
 
 
-def Email(*checks: StringCheck, **kwargs) -> Field[str]:
-    return String(*checks, format='email', **kwargs)
+Integer = Int64
 
 
-def Integer(*checks: Check,
-            minimum=None,
-            maximum=None,
-            **kwargs) -> Field[int]:
-    if minimum is not None:
-        checks += GreaterThanEqual(minimum),
-    if maximum is not None:
-        checks += LessThanEqual(maximum),
-    return Field(int, *checks, **kwargs)
+def Float32(**kwargs) -> Field[float]:
+    return Field(float, **kwargs)
 
 
-def Int32(**kwargs):
-    return Field(int32, FormatCheck('int32'))
+def Float64(**kwargs) -> Field[float]:
+    return Field(float, **kwargs)
 
 
-def Int64(**kwargs):
-    return Field(int64, FormatCheck('int64'))
-
-
-def Number(*checks: Check, **kwargs) -> Field[float]:
-    # TODO minimum, maximum, exclusive_minimum, exclusive_maximum.
-    return Field(float, *checks, **kwargs)
+Number = Float64
 
 
 CT = TypeVar('CT', Field, 'MapField', 'RepeatField')
 
 
+class _RepeatValueProxy(collections.MutableSequence):
+    def __init__(self, message: 'venom.message.Message', attribute: str):
+        self.message = message
+        self.attribute = attribute
+
+    @property
+    def _sequence(self) -> list:
+        try:
+            return self.message[self.attribute]
+        except KeyError:
+            return list()
+
+    def __len__(self):
+        return len(self._sequence)
+
+    def __getitem__(self, index):
+        return self._sequence[index]
+
+    def insert(self, index, value):
+        self.message[self.attribute] = sequence = self._sequence
+        sequence.insert(index, value)
+
+    def __delitem__(self, index):
+        self.message[self.attribute] = sequence = self._sequence
+        del sequence[index]
+
+    def __setitem__(self, index, value):
+        self.message[self.attribute] = sequence = self._sequence
+        sequence[index] = value
+
+    def __iter__(self):
+        return iter(self._sequence)
+
+
 class RepeatField(Generic[CT], FieldDescriptor):
     def __init__(self,
                  items: CT,
-                 *checks: RepeatCheck,
-                 attribute: str = None,
-                 optional: bool = False) -> None:
-        self.items = items
-        # TODO need to enforce that there is only one check of a certain type
-        self.checks = checks
+                 attribute: str = None) -> None:
         self.attribute = attribute
-        self.optional = optional
+        self.items = items
 
-    # TODO address = AddressBook.addresses.add()
-    # def add(self):
-    #     if not issubclass(self.items.type, Message):
-    #
-
+    def __get__(self, instance: 'venom.message.Message', owner):
+        if instance is None:
+            return self
+        return _RepeatValueProxy(instance, self.attribute)
 
 
 class MapField(Generic[CT], FieldDescriptor):
     def __init__(self,
                  values: CT,
-                 *checks: MapCheck,
-                 attribute: str = None,
-                 optional: bool = False) -> None:
+                 attribute: str = None) -> None:
+        super().__init__(attribute=attribute)
         self.keys = String()
         self.values = values
-        # TODO need to enforce that there is only one check of a certain type
-        self.checks = checks
-        self.attribute = attribute
-        self.optional = optional
 
 
-def Repeat(items: Union[Field, MapField, RepeatField, type],
-           *checks: RepeatCheck,
-           unique: bool = None,
-           **kwargs) -> RepeatField:
-    # TODO separate key checks from mapping checks here.
+def Repeat(items: Union[Field, MapField, RepeatField, type], **kwargs) -> RepeatField:
     if not isinstance(items, (Field, MapField, RepeatField)):
         items = Field(items)
-    if unique is not None:
-        checks += UniqueItems(unique=unique),
-    return RepeatField(items, *checks, **kwargs)
+    return RepeatField(items, **kwargs)
 
 
-def Map(values: Union[Field, MapField, RepeatField, type],
-        *checks: MapCheck,
-        **kwargs) -> MapField:
+def Map(values: Union[Field, MapField, RepeatField, type], **kwargs) -> MapField:
     # TODO keys argument.
-    # TODO separate key checks from mapping checks here.
-    if not isinstance(values, (Field, MapField, RepeatField)):
-        values = Field(values)
-    return MapField(values, *checks, **kwargs)
+    return MapField(values, **kwargs)

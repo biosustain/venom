@@ -1,13 +1,11 @@
+import asyncio
 import unittest
 from functools import wraps
-from typing import Union
+from typing import Union, Type, Iterable
 from unittest.mock import MagicMock
 from weakref import WeakKeyDictionary
-
-import asyncio
-
-from venom import Venom, UnknownService, Service, Context
-from venom.comms import Client
+from venom.rpc import Venom, UnknownService, Service, RequestContext
+from venom.rpc.comms import BaseClient
 
 
 class AsyncMock(MagicMock):
@@ -20,7 +18,7 @@ class MockVenom(Venom):
         super().__init__(*args, **kwargs)
         self._context_mock_instances = WeakKeyDictionary()
 
-    def get_instance(self, reference: Union[str, type], context: Context = None):
+    def get_service(self, reference: Union[str, type], context: RequestContext = None):
         if context is not None:
             try:
                 return self._context_mock_instances[context][reference]
@@ -37,19 +35,20 @@ class MockVenom(Venom):
                 self._context_mock_instances[context][reference] = instance
             else:
                 self._context_mock_instances[context] = {reference: instance}
+
         return instance
 
 
-def mock_venom(*services: type(Service), **kwargs):
+def mock_venom(*services: Iterable[Type[Service]], **kwargs):
     venom = MockVenom(**kwargs)
     for service in services:
         venom.add(service)
     return venom
 
 
-def mock_instance(service: type(Service), *dependencies: type(Service), **kwargs):
+def mock_service(service: Type[Service], *dependencies: Iterable[Type[Service]], **kwargs):
     venom = mock_venom(service, *dependencies, **kwargs)
-    return venom.get_instance(service)
+    return venom.get_instance(service, RequestContext())
 
 
 def sync(coro):
@@ -67,26 +66,26 @@ def sync_decorator(fn):
     return wrapper
 
 
-class _TestCaseMeta(type):
+class TestCaseMeta(type):
     def __new__(mcs, name, bases, members):
         for key, value in members.items():
             if key.startswith('test_') and asyncio.iscoroutinefunction(value):
                 members[key] = sync_decorator(value)
 
-        return super(_TestCaseMeta, mcs).__new__(mcs, name, bases, members)
+        return super(TestCaseMeta, mcs).__new__(mcs, name, bases, members)
 
 
-class AioTestCase(unittest.TestCase, metaclass=_TestCaseMeta):
+class AioTestCase(unittest.TestCase, metaclass=TestCaseMeta):
     """
     A custom unittest.TestCase that converts all tests that are coroutine functions into synchronous tests.
     """
     pass
 
 
-class MockClient(MagicMock, Client):
+class MockClient(MagicMock, BaseClient):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.responses = MagicMock()
 
-    async def invoke(self, venom, context, function, request=None):
-        return getattr(self.responses, function.attribute)(request)
+    async def invoke(self, stub, rpc, request):
+        return getattr(self.responses, rpc.name)(request)

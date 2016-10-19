@@ -7,14 +7,14 @@ from hello import HelloRequest, HelloResponse
 
 
 class HelloService(Service):
-    @http.POST('/greet/{name}', request=HelloRequest, response=HelloResponse)
+    @http.POST('/greet/{name}')
     def say_hello(self, request: HelloRequest) -> HelloResponse:
-        message = "Hello, {}!".format(request.name)
+        text = "Hello, {}!".format(request.name)
 
         if request.shout:
-            message = message.upper()
+            text = text.upper()
 
-        return HelloResponse(message=message)
+        return HelloResponse(text)
 
 
 venom = Venom()

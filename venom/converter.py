@@ -1,11 +1,12 @@
 from abc import ABCMeta, abstractmethod
 from typing import Any
+from typing import Type
 
 from venom.message import Message
 
 
 class Converter(metaclass=ABCMeta):
-    wire = None  # type: type(Message)
+    wire = None  # type: Type[Message]
     python = None  # type: type
 
     @abstractmethod

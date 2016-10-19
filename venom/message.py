@@ -1,13 +1,13 @@
 from abc import ABCMeta
 from collections import MutableMapping
 from collections import OrderedDict
-from typing import Any, Dict
+from typing import Any, Dict, Type
 
-from venom.fields import FieldDescriptor
-from venom.utils import meta
+from venom.fields import Field, FieldDescriptor
+from venom.util import meta
 
 
-class _OneOf(object):
+class OneOf(object):
     def __init__(self, *choices):
         self.choices = choices
 
@@ -29,6 +29,7 @@ class MessageMeta(ABCMeta):
         cls = super(MessageMeta, mcs).__new__(mcs, name, bases, members)
         cls.__fields__ = OrderedDict(getattr(cls, '__fields__') or ())
         cls.__meta__, meta_changes = meta(bases, members)
+        cls.__meta__.wire_formats = {}
 
         if not meta_changes.get('name', None):
             cls.__meta__.name = name
@@ -38,7 +39,7 @@ class MessageMeta(ABCMeta):
                 cls.__fields__[name] = member
                 if member.attribute is None:
                     member.attribute = name
-            elif isinstance(member, _OneOf):
+            elif isinstance(member, OneOf):
                 cls.__meta__.one_of_groups += (name, member.choices)
 
         return cls
@@ -52,10 +53,17 @@ class Message(MutableMapping, metaclass=MessageMeta):
     class Meta:
         name = None
         one_of_groups = ()
+        wire_formats = None
 
-    def __init__(self, **kwargs):
-        # TODO use *args (since properties are ordered)
-        self._values = {self.__fields__[key].attribute: value for key, value in kwargs.items()}
+    def __init__(self, *args, **kwargs):
+        if args:
+            self._values = {}
+            for value, key in zip(args, self.__fields__.keys()):
+                self._values[self.__fields__[key].attribute] = value
+            for key, value in kwargs.items():
+                self._values[self.__fields__[key].attribute] = value
+        else:
+            self._values = {self.__fields__[key].attribute: value for key, value in kwargs.items()}
 
     @classmethod
     def from_object(cls, obj):
@@ -115,12 +123,23 @@ def one_of(*choices):
 
 
     """
-    return _OneOf(choices)
+    return OneOf(choices)
 
 
 class Empty(Message):
     pass
 
 
-def message_factory(name: str, fields: Dict[str, FieldDescriptor]) -> type(Message):
+def message_factory(name: str, fields: Dict[str, FieldDescriptor]) -> Type[Message]:
     return type(name, (Message,), fields)
+
+
+def get_or_default(message: Message, key: str, default: Any = None):
+    try:
+        return message[key]
+    except KeyError as e:
+        if key in message.__fields__:
+            if default is None:
+                return message.__fields__[key].default()
+            return default
+        raise e

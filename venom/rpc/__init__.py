@@ -1,11 +1,13 @@
-from typing import Iterable, Union, Tuple
+from typing import Type, Union, Iterable, Tuple
 from weakref import WeakKeyDictionary
 
-from venom.rpc.remote import Remote
-from venom.rpc.service import Service
+from venom.rpc.stub import Stub, RPC
+from venom.serialization import WireFormat
+from .service import Service
+from .method import rpc, http
 
 
-class UnknownService(ValueError):
+class UnknownService(RuntimeError):
     pass
 
 
@@ -14,35 +16,37 @@ class RequestContext(object):
 
 
 class Venom(object):
-    def __init__(self):
+    def __init__(self, *, wire_format: WireFormat = None):
         self._instances = WeakKeyDictionary()
         self._services = {}
         self._clients = {}
 
-        # if schema is None:
-        #     pass
-        #     #from venom-1.schema.openapi import OpenAPISchema
-        #     #schema = OpenAPISchema()
-        # self.schema = schema
-
     # TODO change signature so that all keyword arguments go to the client_cls on init.
-    def add(self, service: type(Service), client: 'venom.rpc.comms.BaseClient' = None) -> None:
+    # TODO add internal: bool = None flag; internal = False makes Stubs publicly available.
+    def add(self,
+            service: Type[Service],
+            client: Type['venom.rpc.comms.Client'] = None,
+            *client_args,
+            **client_kwargs) -> None:
+
         name = service.__meta__.name
         if name in self._services:
             if self._services[name] is service:
                 return
-            raise ValueError("A service is already defined under the name '{}'".format(name))
+            raise ValueError("A service with name '{}' already exists".format(name))
         self._services[name] = service
-        self._clients[service] = client
+
+        if client:
+            self._clients[service] = client(service, *client_args, **client_kwargs)
 
     def _resolve_service_cls(self, reference: Union[str, type(Service)]):
         if isinstance(reference, str):
             try:
                 return self._services[reference]
             except KeyError:
-                raise UnknownService("No service named '{}' is known to this venom".format(reference))
+                raise UnknownService("No service with name '{}' is known to this Venom".format(reference))
         elif reference not in self._services.values():
-            raise UnknownService("'{}' is not known to this venom".format(reference))
+            raise UnknownService("'{}' is not known to this Venom".format(reference))
         return reference
 
     def get_instance(self, reference: Union[str, type], context: RequestContext = None):
@@ -56,7 +60,7 @@ class Venom(object):
         else:
             context = RequestContext()
 
-        if issubclass(cls, Remote):
+        if issubclass(cls, Stub):
             instance = cls(self._clients[cls], venom=self, context=context)
         else:
             instance = cls(venom=self, context=context)
@@ -68,14 +72,14 @@ class Venom(object):
                 self._instances[context] = {cls: instance}
         return instance
 
-    def iter_methods(self) -> Iterable[Tuple[type(Service), 'venom.rpc.method.BaseMethod']]:
+    def iter_methods(self) -> Iterable[Tuple[Type[Service], 'venom.rpc.method.Method']]:
         for service in self._services.values():
-            if isinstance(service, Remote):
+            # TODO add() to flag services as internal or external so that stubs can still be forwarded if wanted.
+            if isinstance(service, Stub):
                 continue
 
             for rpc in service.__methods__.values():
                 yield service, rpc
 
-    def __iter__(self) -> Iterable[type(Service)]:
+    def __iter__(self) -> Iterable[Type[Service]]:
         return iter(self._services.values())
-
