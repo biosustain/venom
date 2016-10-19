@@ -11,7 +11,7 @@ setup(
     license='MIT',
     author='Lars Schöning',
     author_email='lays@biosustain.dtu.dk',
-    description='',
+    description='Venom is an upcoming RPC framework for Python',
     long_description=codecs.open('README.rst', encoding='utf-8').read(),
     test_suite='nose.collector',
     tests_require=[
