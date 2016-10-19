@@ -2,6 +2,15 @@
 Venom RPC
 =========
 
+.. image:: https://img.shields.io/travis/biosustain/venom/master.svg?style=flat-square
+    :target: https://travis-ci.org/biosustain/venom
+
+.. image:: https://img.shields.io/pypi/v/venom.svg?style=flat-square
+    :target: https://pypi.python.org/pypi/venom
+
+.. image:: https://img.shields.io/pypi/l/venom.svg?style=flat-square
+    :target: https://pypi.python.org/pypi/venom
+   
 Venom will be an RPC framework for Python.
 
 
