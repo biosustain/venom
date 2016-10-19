@@ -16,7 +16,6 @@ setup(
     test_suite='nose.collector',
     tests_require=[
         'aiohttp',
-        'grpcio',
         'nose'
     ],
     install_requires=[
