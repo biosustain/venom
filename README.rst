@@ -29,7 +29,7 @@ To install Venom using 'pip', enter:
 
 ::
 
-    pip install venom==1.0.0a1
+    pip install venom==1.0.0a1[aiohttp]
 
 
 Road map
