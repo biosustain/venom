@@ -57,7 +57,7 @@ class Field(Generic[T], FieldDescriptor):
         return self._type
 
     def __eq__(self, other):
-        if not isinstance(other, self.__class__):
+        if not isinstance(other, Field):
             return False
         return self.type == other.type and \
                self.attribute == other.attribute and \
