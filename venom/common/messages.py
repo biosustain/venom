@@ -77,3 +77,11 @@ StringValue.__meta__.wire_formats[_JSON] = _JSONValue(StringValue)
 IntegerValue.__meta__.wire_formats[_JSON] = _JSONValue(IntegerValue)
 NumberValue.__meta__.wire_formats[_JSON] = _JSONValue(NumberValue)
 BoolValue.__meta__.wire_formats[_JSON] = _JSONValue(BoolValue)
+
+
+class Timestamp(Message):
+    seconds = Int64()
+    nanos = Int32()
+
+    class Meta:
+        proto_package = 'google.protobuf'

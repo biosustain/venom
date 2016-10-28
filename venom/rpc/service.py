@@ -4,7 +4,7 @@ from typing import Optional
 from typing import Set
 from typing import Type
 
-from venom.common import IntegerValueConverter, BooleanValueConverter
+from venom.common import IntegerValueConverter, BooleanValueConverter, DateTimeConverter, DateConverter
 from venom.common import StringValueConverter, NumberValueConverter
 from venom.rpc.method import Method
 from venom.message import Message
@@ -67,5 +67,7 @@ class Service(object, metaclass=ServiceMeta):
             StringValueConverter,
             IntegerValueConverter,
             NumberValueConverter,
-            BooleanValueConverter)
+            BooleanValueConverter,
+            DateTimeConverter,
+            DateConverter)
         stub = None

@@ -1,6 +1,9 @@
+import calendar
 from typing import TypeVar, Generic
 
-from venom.common.messages import Int64Value, Int32Value, StringValue, Float32Value, Float64Value, BoolValue
+import datetime
+
+from venom.common.messages import Int64Value, Int32Value, StringValue, Float32Value, Float64Value, BoolValue, Timestamp
 from venom.converter import Converter
 
 V = TypeVar('V')
@@ -49,3 +52,28 @@ class Float64ValueConverter(_ValueConverter[Float64Value, float]):
 
 
 NumberValueConverter = Float64ValueConverter
+
+
+class DateConverter(Converter):
+    wire = Timestamp
+    python = datetime.date
+
+    def convert(self, value: Timestamp) -> datetime.date:
+        return datetime.datetime.fromtimestamp(value.seconds).date()
+
+    def format(self, value: datetime.date) -> Timestamp:
+        return Timestamp(int(calendar.timegm(value.timetuple())))
+
+
+class DateTimeConverter(Converter):
+    wire = Timestamp
+    python = datetime.datetime
+
+    def convert(self, value: Timestamp) -> datetime.datetime:
+        return datetime.datetime.fromtimestamp(value.seconds + value.nanos / 10**9)
+
+    def format(self, value: datetime.datetime) -> Timestamp:
+        unix = calendar.timegm(value.timetuple())
+        seconds = int(unix)
+        nanos = int((unix - seconds) * 10**9)
+        return Timestamp(seconds, nanos)

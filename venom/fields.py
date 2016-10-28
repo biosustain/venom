@@ -77,31 +77,37 @@ class ConverterField(Field):
         self.converter = converter
 
 
-def String(**kwargs) -> Field[str]:
-    return Field(str, **kwargs)
+class String(Field[str]):
+    def __init__(self, **kwargs) -> None:
+        super().__init__(str, **kwargs)
 
 
-def Bool(**kwargs) -> Field[bool]:
-    return Field(bool, **kwargs)
+class Bool(Field[bool]):
+    def __init__(self, **kwargs) -> None:
+        super().__init__(bool, **kwargs)
 
 
-def Int32(**kwargs) -> Field[int]:
-    return Field(int, **kwargs)
+class Int32(Field[int]):
+    def __init__(self, **kwargs) -> None:
+        super().__init__(int, **kwargs)
 
 
-def Int64(**kwargs) -> Field[int]:
-    return Field(int, **kwargs)
+class Int64(Field[int]):
+    def __init__(self, **kwargs) -> None:
+        super().__init__(int, **kwargs)
 
 
 Integer = Int64
 
 
-def Float32(**kwargs) -> Field[float]:
-    return Field(float, **kwargs)
+class Float32(Field[float]):
+    def __init__(self, **kwargs) -> None:
+        super().__init__(float, **kwargs)
 
 
-def Float64(**kwargs) -> Field[float]:
-    return Field(float, **kwargs)
+class Float64(Field[float]):
+    def __init__(self, **kwargs) -> None:
+        super().__init__(float, **kwargs)
 
 
 Number = Float64
