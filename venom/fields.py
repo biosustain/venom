@@ -11,13 +11,13 @@ T = TypeVar('T')
 
 
 class FieldDescriptor(Generic[T], metaclass=ABCMeta):
-    attribute = None  # type: Optional[str]
+    name = None  # type: Optional[str]
 
     def __get__(self, instance: 'venom.message.Message', owner):
         if instance is None:
             return self
         try:
-            return instance[self.attribute]
+            return instance[self.name]
         except KeyError:
             return self.default()
 
@@ -26,18 +26,16 @@ class FieldDescriptor(Generic[T], metaclass=ABCMeta):
 
     # https://github.com/python/mypy/issues/244
     def __set__(self, instance: 'venom.message.Message', value: T):
-        instance[self.attribute] = value
+        instance[self.name] = value
 
 
 class Field(Generic[T], FieldDescriptor):
     def __init__(self,
                  type_: Union[T, str],  # Type[T]
-                 attribute: str = None,
                  default: Any = None,
                  **options) -> None:
         self._type = type_
         self._default = default
-        self.attribute = attribute
         self.options = options
 
     def default(self):
@@ -60,11 +58,10 @@ class Field(Generic[T], FieldDescriptor):
         if not isinstance(other, Field):
             return False
         return self.type == other.type and \
-               self.attribute == other.attribute and \
                self.options == other.options
 
     def __repr__(self):
-        return '{}({}, attribute={})'.format(self.__class__.__name__, self._type, repr(self.attribute))
+        return '{}({})'.format(self.__class__.__name__, self._type)
 
 
 class ConverterField(Field):
@@ -117,14 +114,14 @@ CT = TypeVar('CT', Field, 'MapField', 'RepeatField')
 
 
 class _RepeatValueProxy(collections.MutableSequence):
-    def __init__(self, message: 'venom.message.Message', attribute: str):
+    def __init__(self, message: 'venom.message.Message', name: str):
         self.message = message
-        self.attribute = attribute
+        self.name = name
 
     @property
     def _sequence(self) -> list:
         try:
-            return self.message[self.attribute]
+            return self.message[self.name]
         except KeyError:
             return list()
 
@@ -135,15 +132,15 @@ class _RepeatValueProxy(collections.MutableSequence):
         return self._sequence[index]
 
     def insert(self, index, value):
-        self.message[self.attribute] = sequence = self._sequence
+        self.message[self.name] = sequence = self._sequence
         sequence.insert(index, value)
 
     def __delitem__(self, index):
-        self.message[self.attribute] = sequence = self._sequence
+        self.message[self.name] = sequence = self._sequence
         del sequence[index]
 
     def __setitem__(self, index, value):
-        self.message[self.attribute] = sequence = self._sequence
+        self.message[self.name] = sequence = self._sequence
         sequence[index] = value
 
     def __iter__(self):
@@ -151,23 +148,18 @@ class _RepeatValueProxy(collections.MutableSequence):
 
 
 class RepeatField(Generic[CT], FieldDescriptor):
-    def __init__(self,
-                 items: CT,
-                 attribute: str = None) -> None:
-        self.attribute = attribute
+    def __init__(self, items: CT) -> None:
         self.items = items
 
     def __get__(self, instance: 'venom.message.Message', owner):
         if instance is None:
             return self
-        return _RepeatValueProxy(instance, self.attribute)
+        return _RepeatValueProxy(instance, self.name)
 
 
 class MapField(Generic[CT], FieldDescriptor):
-    def __init__(self,
-                 values: CT,
-                 attribute: str = None) -> None:
-        super().__init__(attribute=attribute)
+    def __init__(self, values: CT) -> None:
+        super().__init__()
         self.keys = String()
         self.values = values
 

@@ -1,3 +1,4 @@
+from unittest import SkipTest
 from unittest import TestCase
 
 from venom import Message
@@ -29,7 +30,10 @@ class JSONWireFormatTestCase(TestCase):
         self.assertEqual(e.exception.message, "'bad' is not of type 'dict'")
         self.assertEqual(e.exception.path, [])
 
+    @SkipTest
     def test_encode_message_field_attribute(self):
+        # NOTE: removed support for field attributes.
+
         class Pet(Message):
             size = Number(attribute='weight')
 

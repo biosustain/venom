@@ -57,8 +57,8 @@ class JSON(WireFormat):
 
     def __init__(self, fmt: Type[Message]):
         super().__init__(fmt)
-        self.field_encoders = {field.attribute: self._field_encoder(field) for field in fmt.__fields__.values()}
-        self.field_decoders = [(field.attribute, self._field_decoder(field)) for field in fmt.__fields__.values()]
+        self.field_encoders = {key: self._field_encoder(field) for key, field in fmt.__fields__.items()}
+        self.field_decoders = [(key, self._field_decoder(field)) for key, field in fmt.__fields__.items()]
 
     @staticmethod
     def _cast(type_: type, value: Any):

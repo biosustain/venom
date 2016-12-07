@@ -37,8 +37,8 @@ class MessageMeta(ABCMeta):
         for name, member in members.items():
             if isinstance(member, FieldDescriptor):
                 cls.__fields__[name] = member
-                if member.attribute is None:
-                    member.attribute = name
+                if member.name is None:
+                    member.name = name
             elif isinstance(member, OneOf):
                 cls.__meta__.one_of_groups += (name, member.choices)
 
@@ -59,11 +59,11 @@ class Message(MutableMapping, metaclass=MessageMeta):
         if args:
             self._values = {}
             for value, key in zip(args, self.__fields__.keys()):
-                self._values[self.__fields__[key].attribute] = value
+                self._values[key] = value
             for key, value in kwargs.items():
-                self._values[self.__fields__[key].attribute] = value
+                self._values[key] = value
         else:
-            self._values = {self.__fields__[key].attribute: value for key, value in kwargs.items()}
+            self._values = {key: value for key, value in kwargs.items()}
 
     @classmethod
     def from_object(cls, obj):
@@ -103,10 +103,9 @@ class Message(MutableMapping, metaclass=MessageMeta):
 
     def __repr__(self):
         parts = []
-        for key, fields in self.__fields__.items():
-            if fields.attribute in self._values:
-                parts.append('{}={}'.format(key, repr(self._values[fields.attribute])))
-
+        for key in self.__fields__.keys():
+            if key in self._values:
+                parts.append('{}={}'.format(key, repr(self._values[key])))
         return '{}({})'.format(self.__meta__.name, ', '.join(parts))
 
 

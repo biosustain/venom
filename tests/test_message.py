@@ -10,7 +10,7 @@ class MessageTestCase(TestCase):
             sound = String()
 
         self.assertEqual({
-            'sound': String(attribute='sound')
+            'sound': String()
         }, Pet.__fields__)
 
     def test_message_instance(self):
