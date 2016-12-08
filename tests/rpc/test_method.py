@@ -1,5 +1,4 @@
 from collections import namedtuple
-from unittest import TestCase
 
 from venom import Empty
 from venom import Message
@@ -8,11 +7,12 @@ from venom.fields import Int32, String
 from venom.rpc import Service, rpc
 from venom.rpc.method import HTTPVerb
 from venom.rpc.stub import Stub, RPC
+from venom.rpc.test_utils import AioTestCase
 
 
-class MethodTestCase(TestCase):
+class MethodTestCase(AioTestCase):
 
-    def test_method_override(self):
+    async def test_method_override(self):
         Snake = namedtuple('Snake', ('name', 'size'))
 
         class SnakeMessage(Message):
@@ -47,9 +47,9 @@ class MethodTestCase(TestCase):
                 return Snake(name=request.name, size=request.size + 1)
 
         self.assertEqual(SnakeService().grow(Snake('snek', 2)), Snake('snek', 3))
-        self.assertEqual(SnakeService.grow.invoke(SnakeService(), SnakeMessage(name='snek', size=2)),
+        self.assertEqual(await SnakeService.grow.invoke(SnakeService(), SnakeMessage(name='snek', size=2)),
                          SnakeMessage(name='snek', size=3))
-        self.assertEqual(SnakeService.grow.invoke(SnakeService(), SnakeMessage(name='snek')),
+        self.assertEqual(await SnakeService.grow.invoke(SnakeService(), SnakeMessage(name='snek')),
                          SnakeMessage(name='snek', size=1))
 
     def test_method_http(self):

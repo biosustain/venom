@@ -55,15 +55,11 @@ def _route_handler(venom: 'venom.rpc.Venom',
                 request = rpc.request()
 
             for param, resolve in http_rule_params:
-                # TODO catch for missing params
+                # TODO catch for missing params (should be made default)
                 request[param] = resolve(http_request.match_info[param])
 
             instance = venom.get_instance(service)
-            response = rpc.invoke(instance, request)
-
-            if iscoroutine(response) or isinstance(response, Future):
-                response = await response
-
+            response = await rpc.invoke(instance, request)
             return web.Response(body=rpc_response.pack(response),
                                 content_type=rpc_response.mime,
                                 status=http_status)

@@ -1,10 +1,9 @@
-from unittest import TestCase
-
 from venom import Empty
 from venom.rpc.stub import Stub, RPC
+from venom.rpc.test_utils import AioTestCase
 
 
-class StubTestCase(TestCase):
+class StubTestCase(AioTestCase):
 
     def test_stub_rpc(self):
         class PetStub(Stub):
@@ -16,12 +15,12 @@ class StubTestCase(TestCase):
         self.assertEqual(PetStub.pet.response, Empty)
         self.assertEqual(PetStub.pet.name, 'pet')
 
-    def test_rpc_invoke(self):
+    async def test_rpc_invoke(self):
         class PetStub(Stub):
             pet = RPC(Empty, Empty)
 
         with self.assertRaises(NotImplementedError):
-            PetStub().pet(Empty())
+            await PetStub().pet(Empty())
 
         with self.assertRaises(NotImplementedError):
-            PetStub.pet.invoke(PetStub(), Empty())
+            await PetStub.pet.invoke(PetStub(), Empty())

@@ -1,3 +1,4 @@
+import asyncio
 import enum
 import re
 from types import MethodType
@@ -42,7 +43,8 @@ class Method(object):
             self.name = name
         return self
 
-    def invoke(self, instance: 'venom.rpc.service.Service', request: Message):
+    # TODO Error handling. Only errors that are venom.exceptions.Error instances should be raised
+    async def invoke(self, instance: 'venom.rpc.service.Service', request: Message) -> Message:
         raise NotImplementedError
 
     @property
@@ -118,8 +120,12 @@ class ServiceMethod(Method):
                               http_status=self.http_status,
                               **self.options)
 
-    def invoke(self, instance: 'venom.service.Service', request: Message):
-        return self._invokable_func(instance, request)
+    async def invoke(self, instance: 'venom.service.Service', request: Message):
+        # TODO determine if iscoroutinefunction() ahead of time and convert _invokable_func if necessary.
+        response = self._invokable_func(instance, request)
+        if asyncio.iscoroutine(response) or isinstance(response, asyncio.Future):
+            return await response
+        return response
 
 
 def rpc(*args, method_cls=ServiceMethod, **kwargs):

@@ -12,9 +12,9 @@ class Stub(Service):
         super().__init__(venom, context)
         self._client = client
 
-    def invoke_(self, rpc, request):
+    async def invoke_(self, rpc, request):
         if self._client:
-            return self._client.invoke(self, rpc, request, context=self._context)
+            return await self._client.invoke(self, rpc, request, context=self._context)
         raise NotImplementedError
 
 
@@ -31,9 +31,9 @@ class RPC(Method):
         raise AttributeError
 
     # FIXME make invoke async everywhere.
-    def invoke(self, service: 'venom.rpc.service.Service', request: 'venom.Message') -> 'venom.Message':
+    async def invoke(self, service: 'venom.rpc.service.Service', request: 'venom.Message') -> 'venom.Message':
         if isinstance(service, Stub):
-            return service.invoke_(self, request)
+            return await service.invoke_(self, request)
         raise NotImplementedError
 
 
