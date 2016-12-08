@@ -2,14 +2,22 @@ import asyncio
 import enum
 import re
 from types import MethodType
-from typing import Callable, Any, Type, Union, Sequence, Set
+from typing import Callable, Any, Type, Union, Set, Dict
 
+from venom.exceptions import NotImplemented_
 from venom.message import Message
 from venom.rpc.inspection import magic
 from venom.util import AttributeDict
 
 
 _RULE_PARAMETER_RE = re.compile('\{([^}:]+)(:[^}]*)?\}')
+
+
+class HTTPFieldLocation(enum.Enum):
+    HEADER = 'header'
+    QUERY = 'query'
+    PATH = 'path'
+    BODY = 'body'
 
 
 class Method(object):
@@ -59,8 +67,31 @@ class Method(object):
             return service_http_rule + '/' + self.name.lower().replace('_', '-')
         return service_http_rule + self._http_rule
 
-    def http_rule_params(self) -> Set[str]:
+    def http_path_params(self) -> Set[str]:
         return set(m.group(1) for m in re.finditer(_RULE_PARAMETER_RE, self._http_rule or ''))
+
+    def http_field_locations(self) -> Dict[HTTPFieldLocation, Set[str]]:
+        locations = {location: set() for location in HTTPFieldLocation}
+
+        path = set()
+        for name in self.http_path_params():
+            if name in self.request.__fields__.keys():
+                path.add(name)
+
+        if path:
+            locations[HTTPFieldLocation.PATH] = path
+
+        remaining = set()
+        for name in self.request.__fields__.keys():
+            if name not in path:
+                remaining.add(name)
+
+        if self.http_verb in (HTTPVerb.POST, HTTPVerb.PATCH, HTTPVerb.PUT):
+            locations[HTTPFieldLocation.BODY] = remaining
+        else:
+            locations[HTTPFieldLocation.QUERY] = remaining
+        return locations
+
 
 
 class ServiceMethod(Method):
@@ -122,9 +153,12 @@ class ServiceMethod(Method):
 
     async def invoke(self, instance: 'venom.service.Service', request: Message):
         # TODO determine if iscoroutinefunction() ahead of time and convert _invokable_func if necessary.
-        response = self._invokable_func(instance, request)
-        if asyncio.iscoroutine(response) or isinstance(response, asyncio.Future):
-            return await response
+        try:
+            response = self._invokable_func(instance, request)
+            if asyncio.iscoroutine(response) or isinstance(response, asyncio.Future):
+                return await response
+        except NotImplementedError:
+            raise NotImplemented_()
         return response
 
 

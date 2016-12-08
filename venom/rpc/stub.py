@@ -1,5 +1,6 @@
 from types import MethodType
 
+from venom.exceptions import NotImplemented_
 from venom.rpc.method import Method, HTTPVerb
 from venom.rpc.service import Service
 
@@ -25,17 +26,21 @@ class RPC(Method):
         if instance is None:
             return self
         else:
-            return MethodType(self.invoke, instance)
+            return MethodType(self._invoke, instance)
 
     def __set__(self, instance, value):
         raise AttributeError
 
-    # FIXME make invoke async everywhere.
-    async def invoke(self, service: 'venom.rpc.service.Service', request: 'venom.Message') -> 'venom.Message':
+    async def _invoke(self, service: 'venom.rpc.service.Service', request: 'venom.Message') -> 'venom.Message':
         if isinstance(service, Stub):
             return await service.invoke_(self, request)
         raise NotImplementedError
 
+    async def invoke(self, service: 'venom.rpc.service.Service', request: 'venom.Message') -> 'venom.Message':
+        try:
+            return await self._invoke(service, request)
+        except NotImplementedError:
+            raise NotImplemented_()
 
     @staticmethod
     def http(verb: HTTPVerb, rule=None, *args, **kwargs):

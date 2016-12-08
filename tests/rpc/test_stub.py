@@ -1,4 +1,5 @@
 from venom import Empty
+from venom.exceptions import NotImplemented_
 from venom.rpc.stub import Stub, RPC
 from venom.rpc.test_utils import AioTestCase
 
@@ -22,5 +23,5 @@ class StubTestCase(AioTestCase):
         with self.assertRaises(NotImplementedError):
             await PetStub().pet(Empty())
 
-        with self.assertRaises(NotImplementedError):
+        with self.assertRaises(NotImplemented_):
             await PetStub.pet.invoke(PetStub(), Empty())

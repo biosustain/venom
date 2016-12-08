@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractmethod
 from functools import partial
 from json import JSONDecodeError
-from typing import Type, TypeVar, Generic, Callable, Union, Any, Tuple, Iterable
+from typing import Type, TypeVar, Generic, Callable, Union, Any, Tuple, Iterable, Dict
 
 from venom import Empty
 from venom import Message
@@ -48,7 +48,6 @@ try:
 except ImportError:
     import json
 
-
 JSONPrimitive = Union[str, int, float, bool]
 
 
@@ -58,12 +57,12 @@ class JSON(WireFormat):
     def __init__(self, fmt: Type[Message]):
         super().__init__(fmt)
         self.field_encoders = {key: self._field_encoder(field) for key, field in fmt.__fields__.items()}
-        self.field_decoders = [(key, self._field_decoder(field)) for key, field in fmt.__fields__.items()]
+        self.field_decoders = {key: self._field_decoder(field) for key, field in fmt.__fields__.items()}
 
     @staticmethod
     def _cast(type_: type, value: Any):
         # TODO JSON type names, i.e. object instead of dict, integer instead of int etc.
-        if type(value) != type_:
+        if not isinstance(value, type_):
             raise ValidationError("{} is not of type '{}'".format(repr(value), type_.__name__))
         return value
 
@@ -116,30 +115,46 @@ class JSON(WireFormat):
             obj[attr] = self.field_encoders[attr](value)
         return obj
 
-    def decode(self, instance: Any, skip: Iterable[str] = ()) -> Message:
+    def decode(self, instance: Any, include: Iterable[str] = None) -> Message:
         instance = self._cast(dict, instance)
-        msg = self._format()
+        message = self._format()
 
-        for attr, decode in self.field_decoders:
-            if attr in instance and attr not in skip:
+        for name, decode in self.field_decoders.items():
+            if name in instance and (include is None or name in include):
                 try:
-                    msg[attr] = decode(instance[attr])
+                    message[name] = decode(instance[name])
                 except ValidationError as e:
-                    e.path.insert(0, attr)
+                    e.path.insert(0, name)
                     raise e
-        return msg
+        return message
 
     def pack(self, message: Message) -> bytes:
         if self._format is Empty:
             return b''
         return json.dumps(self.encode(message)).encode('utf-8')
 
-    def unpack(self, buffer: bytes, skip: Iterable[str] = ()):
+    def unpack(self, buffer: bytes, include: Iterable[str] = None):
         # special case for 'Empty' message (may be 0-length/empty)
         if self._format is Empty and len(buffer) == 0:
             return self._format()
 
         try:
-            return self.decode(json.loads(buffer.decode('utf-8')), skip)
+            return self.decode(json.loads(buffer.decode('utf-8')), include)
         except (ValueError, JSONDecodeError) as e:
             raise ValidationError("Invalid JSON: {}".format(str(e)))
+
+
+def _cast(type_: type, value: Any):
+    # TODO JSON/wire-format specific type names, i.e. object instead of dict, integer instead of int etc.
+    try:
+        return type_(value)
+    except ValueError:
+        raise ValidationError("{} is not formatted as a '{}'".format(repr(value), type_.__name__))
+
+
+def string_decoder(field: Field, wire_format: Type[WireFormat]):
+    # TODO support converter fields and message fields (unpack message using wire_format)
+    if field.type in (int, str):
+        return lambda value: _cast(field.type, value)
+    # TODO support boolean etc. (with wire formats that allow it)
+    raise NotImplementedError()

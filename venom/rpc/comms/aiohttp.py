@@ -1,36 +1,16 @@
-from asyncio import iscoroutine, Future
-from typing import Type, Any
+from typing import Type
 
 import aiohttp
-from aiohttp import web
 
-from venom.exceptions import Error, ErrorResponse, ValidationError, NotImplemented_
-from venom.fields import Field, ConverterField
-from venom.rpc import Stub
+from venom.exceptions import Error, ErrorResponse
 from venom.rpc.comms import BaseClient
-from venom.rpc.method import Method, HTTPVerb
-from venom.serialization import JSON, WireFormat
-
+from venom.rpc.method import Method, HTTPVerb, HTTPFieldLocation
+from venom.serialization import JSON, WireFormat, string_decoder
 
 try:
     from aiohttp import web, ClientSession
 except ImportError:
     raise RuntimeError("You must install the 'aiohttp' package to use the AioHTTP features of Venom RPC")
-
-
-def _cast(type_: type, value: Any):
-    # TODO JSON type names, i.e. object instead of dict, integer instead of int etc.
-    try:
-        return type_(value)
-    except ValueError:
-        raise ValidationError("{} is not formatted as a '{}'".format(repr(value), type_.__name__))
-
-
-def _request_param_resolver(field: Field):
-    if field.type in (int, str):
-        return lambda value: _cast(field.type, value)
-    raise NotImplementedError()
-    # TODO other string conversions
 
 
 def _route_handler(venom: 'venom.rpc.Venom',
@@ -42,21 +22,32 @@ def _route_handler(venom: 'venom.rpc.Venom',
     rpc_error_response = wire_format(ErrorResponse)
 
     http_status = rpc.http_status
-    http_rule_params = [(name, _request_param_resolver(rpc.request.__fields__[name]))
-                        for name in rpc.http_rule_params()]
-    http_request_body = rpc.http_verb in (HTTPVerb.POST, HTTPVerb.PATCH, HTTPVerb.PUT) or \
-                        len(http_rule_params) == len(rpc.request.__fields__)
+
+    http_field_locations = rpc.http_field_locations()
+    http_request_body = http_field_locations[HTTPFieldLocation.BODY]
+    http_request_query = [(name, string_decoder(rpc.request.__fields__[name], wire_format))
+                          for name in http_field_locations[HTTPFieldLocation.QUERY]]
+
+    http_request_path = [(name, string_decoder(rpc.request.__fields__[name], wire_format))
+                         for name in http_field_locations[HTTPFieldLocation.PATH]]
 
     async def handler(http_request):
         try:
             if http_request_body:
-                request = rpc_request.unpack(await http_request.read(), skip=http_rule_params)
+                request = rpc_request.unpack(await http_request.read(), include=http_request_body)
             else:
                 request = rpc.request()
+                for name, decode in http_request_query:
+                    try:
+                        request[name] = decode(http_request.match_info[name])
+                    except KeyError:
+                        pass
 
-            for param, resolve in http_rule_params:
-                # TODO catch for missing params (should be made default)
-                request[param] = resolve(http_request.match_info[param])
+            for name, decode in http_request_path:
+                try:
+                    request[name] = decode(http_request.match_info[name])
+                except KeyError:
+                    pass
 
             instance = venom.get_instance(service)
             response = await rpc.invoke(instance, request)
@@ -65,16 +56,8 @@ def _route_handler(venom: 'venom.rpc.Venom',
                                 status=http_status)
         except Error as e:
             return web.Response(body=rpc_error_response.pack(e.format()),
-                                content_type=wire_format.mime,
+                                content_type=rpc_error_response.mime,
                                 status=e.http_status)
-        except NotImplementedError:
-            e = NotImplemented_()
-            # FIXME errors should be produced by the Method.invoke() call itself!
-            return web.Response(body=rpc_error_response.pack(e.format()),
-                                content_type=wire_format.mime,
-                                status=e.http_status)
-
-        # TODO 500 error fallback, other error fallbacks
     return handler
 
 
@@ -121,10 +104,12 @@ class Client(BaseClient):
 
         # TODO optional timeouts
 
-        if rpc.http_rule_params():
+        if rpc.http_path_params():
             url = self._base_url + rpc.http_rule(stub).format(**request)
         else:
             url = self._base_url + rpc.http_rule(stub)
+
+        # TODO support fields in query string
 
         headers = None
         if rpc.http_verb in (HTTPVerb.POST, HTTPVerb.PUT, HTTPVerb.PATCH):

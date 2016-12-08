@@ -67,6 +67,6 @@ class MethodTestCase(AioTestCase):
             name = String()
             size = Int32()
 
-        self.assertEqual(RPC.http.GET('/', Empty, Empty).http_rule_params(), set())
-        self.assertEqual(RPC.http.GET('/{id}', Snake, Snake).http_rule_params(), {'id'})
-        self.assertEqual(RPC.http.GET('/{name}/{id}', Snake, Snake).http_rule_params(), {'id', 'name'})
+        self.assertEqual(RPC.http.GET('/', Empty, Empty).http_path_params(), set())
+        self.assertEqual(RPC.http.GET('/{id}', Snake, Snake).http_path_params(), {'id'})
+        self.assertEqual(RPC.http.GET('/{name}/{id}', Snake, Snake).http_path_params(), {'id', 'name'})
