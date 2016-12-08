@@ -1,10 +1,8 @@
-from collections import namedtuple
+from functools import wraps
 from inspect import signature, Parameter
 from typing import Callable, Any, Sequence, get_type_hints, Type, NamedTuple
 from typing import Tuple
 from typing import Union
-
-from six import wraps
 from venom.fields import RepeatField, MapField
 
 from venom.converter import Converter
