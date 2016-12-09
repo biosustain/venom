@@ -21,8 +21,8 @@ So far, Venom RPC supports unary requests & replies that are defined as methods 
 
 The currently available implementations are:
 
- - Unary HTTP/1 protocol implementation using *aiohttp* or *flask*
- - Unary gRPC protocol implementation
+ - Unary HTTP/1 protocol implementation using *aiohttp* (asynchronous) or *flask* (synchronous only)
+ - Unary gRPC protocol implementation using *grpcio*
  
  
 Documentation currently is minimal! Head to the ``examples/`` folder for more details.
@@ -61,9 +61,9 @@ An unordered list of potential future features:
 
    This would be the only solution that fully supports streaming and can be used in the browser today.
 
- - gRPC (HTTP/2) implementation with e.g. *hyper-h2*
+ - Streaming gRPC (HTTP/2) implementation with e.g. *hyper-h2*
  
-   There's already an experimental gRPC implentation based on "grpcio", but without true support for asynchronous calls because that is not supported by the official Python library.
+   There's already an experimental gRPC implentation based on *grpcio*, but without true support for asynchronous calls because that is not supported by the official Python library.
    
  - MsgPack serialization support
  - ProtocolBuffer support
