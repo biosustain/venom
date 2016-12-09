@@ -56,7 +56,7 @@ A list of major features required for the first release:
  
 An unordered list of potential future features:
 
-- CLI for generating sharable stubs from services.
+- CLI for generating sharable stubs from services
 - Streaming WebSocket implementation with *aiohttp*
 
   This would be the only solution that fully supports streaming and can be used in the browser today.
