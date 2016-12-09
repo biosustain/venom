@@ -63,7 +63,7 @@ An unordered list of potential future features:
 
 - Streaming gRPC (HTTP/2) implementation with e.g. *hyper-h2*
 
-  There's already an experimental gRPC implentation based on *grpcio*, but without true support for asynchronous calls because that is not supported by the official Python library.
+  There's already an experimental gRPC implementation based on *grpcio*, but without true support for asynchronous calls because that is not supported by the official Python library.
    
 - MsgPack serialization support
 - ProtocolBuffer support
