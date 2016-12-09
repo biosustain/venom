@@ -51,10 +51,12 @@ A list of major features required for the first release:
 
  - Schema validation
  - Documentation
+ - Message generation from request arguments
+ - OpenAPI (Swagger) schema service for API reflection
  
 An unordered list of potential future features:
 
- - OpenAPI (Swagger) schema service for API reflection
+ - CLI for generating sharable stubs from services.
  - Streaming WebSocket implementation with *aiohttp*
 
    This would be the only solution that fully supports streaming and can be used in the browser today.
@@ -66,7 +68,7 @@ An unordered list of potential future features:
  - MsgPack serialization support
  - ProtocolBuffer support
    
-   The problem with ProtocolBuffer as it stands now is that the official Python library for ProtocolBuffer is not very Pythonic, 
+   The problem with ProtocolBuffer as it stands now is that the official Python library for ProtocolBuffer is not very pythonic, 
    while ease of development in Python is the primary motivator behind Venom.
 
 Streamed responses would use Python 3.6 asynchronous generators.
