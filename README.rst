@@ -36,13 +36,13 @@ To install Venom using 'pip' for use with *aiohttp*, run:
 
 ::
 
-    pip install venom==1.0.0a1[aiohttp]
+    pip install venom[aiohttp]
     
 To install Venom using 'pip' for use with *flask*, run:
 
 ::
 
-    pip install flask-venom==1.0.0a1
+    pip install flask-venom
 
 Road map
 ========
