@@ -21,8 +21,8 @@ So far, Venom RPC supports unary requests & replies that are defined as methods 
 
 The currently available implementations are:
 
- - Unary HTTP/1 protocol implementation using *aiohttp* (asynchronous) or *flask* (synchronous only)
- - Unary gRPC protocol implementation using *grpcio*
+- Unary HTTP/1 protocol implementation using *aiohttp* (asynchronous) or *flask* (synchronous only)
+- Unary gRPC protocol implementation using *grpcio*
  
  
 Documentation currently is minimal! Head to the ``examples/`` folder for more details.
@@ -49,27 +49,27 @@ Road map
 
 A list of major features required for the first release:
 
- - Schema validation
- - Documentation
- - Message generation from request arguments
- - OpenAPI (Swagger) schema service for API reflection
+- Schema validation
+- Documentation
+- Message generation from request arguments
+- OpenAPI (Swagger) schema service for API reflection
  
 An unordered list of potential future features:
 
- - CLI for generating sharable stubs from services.
- - Streaming WebSocket implementation with *aiohttp*
+- CLI for generating sharable stubs from services.
+- Streaming WebSocket implementation with *aiohttp*
 
-   This would be the only solution that fully supports streaming and can be used in the browser today.
+  This would be the only solution that fully supports streaming and can be used in the browser today.
 
- - Streaming gRPC (HTTP/2) implementation with e.g. *hyper-h2*
- 
-   There's already an experimental gRPC implentation based on *grpcio*, but without true support for asynchronous calls because that is not supported by the official Python library.
+- Streaming gRPC (HTTP/2) implementation with e.g. *hyper-h2*
+
+  There's already an experimental gRPC implentation based on *grpcio*, but without true support for asynchronous calls because that is not supported by the official Python library.
    
- - MsgPack serialization support
- - ProtocolBuffer support
+- MsgPack serialization support
+- ProtocolBuffer support
    
-   The problem with ProtocolBuffer as it stands now is that the official Python library for ProtocolBuffer is not very pythonic, 
-   while ease of development in Python is the primary motivator behind Venom.
+  The problem with ProtocolBuffer as it stands now is that the official Python library for ProtocolBuffer is not very pythonic, 
+  while ease of development in Python is the primary motivator behind Venom.
 
 Streamed responses would use Python 3.6 asynchronous generators.
 
