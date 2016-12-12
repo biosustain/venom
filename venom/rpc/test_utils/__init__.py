@@ -18,7 +18,7 @@ class MockVenom(Venom):
         super().__init__(*args, **kwargs)
         self._context_mock_instances = WeakKeyDictionary()
 
-    def get_service(self, reference: Union[str, type], context: RequestContext = None):
+    def get_instance(self, reference: Union[str, type], context: RequestContext = None):
         if context is not None:
             try:
                 return self._context_mock_instances[context][reference]
@@ -46,7 +46,7 @@ def mock_venom(*services: Iterable[Type[Service]], **kwargs):
     return venom
 
 
-def mock_service(service: Type[Service], *dependencies: Iterable[Type[Service]], **kwargs):
+def mock_instance(service: Type[Service], *dependencies: Iterable[Type[Service]], **kwargs):
     venom = mock_venom(service, *dependencies, **kwargs)
     return venom.get_instance(service, RequestContext())
 
@@ -80,12 +80,3 @@ class AioTestCase(unittest.TestCase, metaclass=TestCaseMeta):
     A custom unittest.TestCase that converts all tests that are coroutine functions into synchronous tests.
     """
     pass
-
-
-class MockClient(MagicMock, BaseClient):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.responses = MagicMock()
-
-    async def invoke(self, stub, rpc, request):
-        return getattr(self.responses, rpc.name)(request)

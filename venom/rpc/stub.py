@@ -15,7 +15,7 @@ class Stub(Service):
 
     async def invoke_(self, rpc, request):
         if self._client:
-            return await self._client.invoke(self, rpc, request, context=self._context)
+            return await self._client.invoke(self, rpc, request)
         raise NotImplementedError
 
 

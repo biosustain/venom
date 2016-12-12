@@ -5,6 +5,7 @@ from venom.rpc.stub import Stub, RPC
 from venom.serialization import WireFormat
 from .service import Service
 from .method import rpc, http
+from .proxy import ServiceProxy
 
 
 class UnknownService(RuntimeError):
