@@ -5,7 +5,6 @@ from typing import Union, Type, Iterable
 from unittest.mock import MagicMock
 from weakref import WeakKeyDictionary
 from venom.rpc import Venom, UnknownService, Service, RequestContext
-from venom.rpc.comms import BaseClient
 
 
 class AsyncMock(MagicMock):
