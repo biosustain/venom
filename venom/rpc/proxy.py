@@ -1,6 +1,6 @@
 from typing import Union, Type
 
-from venom.rpc import Service
+from venom.rpc.service import Service
 
 
 class ServiceProxy(object):
@@ -12,4 +12,4 @@ class ServiceProxy(object):
         if service is None:
             return self
         else:
-            return service._venom.get_instance(self.reference, service._context)
+            return service.venom.get_instance(self.reference, service.context)

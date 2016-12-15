@@ -1,3 +1,5 @@
+import asyncio
+from asyncio import gather
 from functools import wraps
 from inspect import signature, Parameter
 from typing import Callable, Any, Sequence, get_type_hints, Type, NamedTuple
@@ -8,6 +10,7 @@ from venom.fields import RepeatField, MapField
 from venom.converter import Converter
 
 from venom.message import Empty, Message, get_or_default
+from venom.rpc.resolver import Resolver
 
 MagicFunction = NamedTuple('MagicFunction', [
     ('request', Type[Message]),
@@ -18,11 +21,25 @@ MagicFunction = NamedTuple('MagicFunction', [
 
 
 # TODO name arg for use with auto-generation
-def magic(func: Callable[..., Any],
-          request: Type[Message] = None,
-          response: Type[Message] = None,
-          converters: Sequence[Converter] = ()) -> MagicFunction:
+def normalize(func: Callable[..., Any],
+              request: Type[Message] = None,
+              response: Type[Message] = None,
+              converters: Sequence[Converter] = (),
+              # TODO replace with Sequence[Union[Converter, Type[Converter]]] see https://github.com/python/typing/issues/266
+          additional_args: Sequence[Resolver] = ()) -> MagicFunction:
+    """
+
+    :param func:
+    :param request:
+    :param response:
+    :param converters:
+    :param additional_args: additional arguments that are resolved during invocation.
+    :return:
+    """
     # TODO parameters supplied by the service implementation through a context; session etc.
+
+    additional_args = [resolver() if isinstance(resolver, type) else resolver for resolver in additional_args]
+    converters = [converter() if isinstance(converter, type) else converter for converter in converters]
 
     func_signature = signature(func)
     func_type_hints = get_type_hints(func)
@@ -32,7 +49,7 @@ def magic(func: Callable[..., Any],
         raise RuntimeError("At least one argument expected in {}".format(func))
 
     request_converter = None
-    func_parameters = tuple(func_signature.parameters.items())[1:]
+    func_parameters = tuple(func_signature.parameters.items())[1 + len(additional_args):]
 
     if len(func_parameters):
         name, param = func_parameters[0]
@@ -150,27 +167,46 @@ def magic(func: Callable[..., Any],
             raise RuntimeError("Unable to coerce return value to wire format: "
                                "'{}' in {}".format(return_type, func))
 
+    wrap_args = lambda req: (req,)
+    wrap_kwargs = lambda req: {}
+
     if unpack_request is True:
-        wrap_request = lambda inst, req: func(inst, **req)
+        wrap_args = lambda req: ()
+        wrap_kwargs = lambda req: req
     elif unpack_request is False:
         if request_converter:
-            wrap_request = lambda inst, req: func(inst, request_converter.convert(req))
-        else:
-            wrap_request = func
+            wrap_args = lambda req: (request_converter.convert(req),)
     elif unpack_request == ():
-        wrap_request = lambda inst, req: func(inst)
+        wrap_args = lambda req: ()
     else:
-        wrap_request = lambda inst, req: func(inst, **{f: get_or_default(req, f, d) for f, d in unpack_request})
+        wrap_args = lambda req: ()
+        wrap_kwargs = lambda req: {f: get_or_default(req, f, d) for f, d in unpack_request}
 
-    # TODO (optimization) combine into just one level of wrapping
+
     if response == Empty and return_type != Empty:
-        def invokable(inst, req: Message) -> Empty:
-            wrap_request(inst, req)
-            return Empty()
+        wrap_response = lambda res: Empty()
     elif response_converter:
-        def invokable(inst, req: Message) -> Message:
-            return response_converter.format(wrap_request(inst, req))
+        wrap_response = lambda res: response_converter.format(res)
     else:
-        invokable = wrap_request
+        wrap_response = lambda res: res
+
+    if not asyncio.iscoroutinefunction(func):
+        func_ = func
+
+        @wraps(func)
+        async def func(*args, **kwargs):
+            return func_(*args, **kwargs)
+
+    # TODO (optimization) do not wrap what does not need to be wrapped
+    if additional_args:
+        async def invokable(inst, req: Message) -> Message:
+            return wrap_response(await func(inst,
+                                            *(await asyncio.gather(*[arg.resolve(inst, req)
+                                                                     for arg in additional_args])),
+                                            *wrap_args(req),
+                                            **wrap_kwargs(req)))
+    else:
+        async def invokable(inst, req: Message) -> Message:
+            return wrap_response(await func(inst, *wrap_args(req), **wrap_kwargs(req)))
 
     return MagicFunction(request, response, func, wraps(func)(invokable))

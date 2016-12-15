@@ -22,11 +22,11 @@ class OneOf(object):
 
 class MessageMeta(ABCMeta):
     @classmethod
-    def __prepare__(mcs, name, bases):
+    def __prepare__(metacls, name, bases):
         return OrderedDict()
 
-    def __new__(mcs, name, bases, members):
-        cls = super(MessageMeta, mcs).__new__(mcs, name, bases, members)
+    def __new__(metacls, name, bases, members):
+        cls = super(MessageMeta, metacls).__new__(metacls, name, bases, members)
         cls.__fields__ = OrderedDict(getattr(cls, '__fields__') or ())
         cls.__meta__, meta_changes = meta(bases, members)
         cls.__meta__.wire_formats = {}

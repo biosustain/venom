@@ -1,18 +1,15 @@
 from typing import Type, Union, Iterable, Tuple
 from weakref import WeakKeyDictionary
 
+from venom.rpc.context import RequestContext
 from venom.rpc.stub import Stub, RPC
 from venom.serialization import WireFormat
-from .service import Service
 from .method import rpc, http
 from .proxy import ServiceProxy
+from .service import Service
 
 
 class UnknownService(RuntimeError):
-    pass
-
-
-class RequestContext(object):
     pass
 
 

@@ -1,11 +1,10 @@
 from abc import ABCMeta
 from importlib import import_module
-from typing import Iterable, TypeVar, Generic, Any, Tuple, Union
+from typing import Iterable, TypeVar, Generic, Any, Tuple, Union, Type
 
 import collections
 
 from venom.util import cached_property
-
 
 T = TypeVar('T')
 
@@ -24,14 +23,17 @@ class FieldDescriptor(Generic[T], metaclass=ABCMeta):
     def default(self):
         return None
 
-    # https://github.com/python/mypy/issues/244
+    # TODO wait on https://github.com/python/mypy/issues/244
     def __set__(self, instance: 'venom.message.Message', value: T):
         instance[self.name] = value
+
+    # TODO Use Python 3.6 __set_name__()
 
 
 class Field(Generic[T], FieldDescriptor):
     def __init__(self,
-                 type_: Union[T, str],  # Type[T]
+                 type_: Union[T, str],
+                 # TODO replace with Union[Type[T], str] see https://github.com/python/typing/issues/266
                  default: Any = None,
                  **options) -> None:
         self._type = type_
@@ -44,7 +46,7 @@ class Field(Generic[T], FieldDescriptor):
         return self._default
 
     @cached_property
-    def type(self) -> T:
+    def type(self) -> Type[T]:
         if isinstance(self._type, str):
             if '.' in self._type:
                 module_name, class_name = self._type.rsplit('.', 1)
@@ -57,8 +59,7 @@ class Field(Generic[T], FieldDescriptor):
     def __eq__(self, other):
         if not isinstance(other, Field):
             return False
-        return self.type == other.type and \
-               self.options == other.options
+        return self.type == other.type and self.options == other.options
 
     def __repr__(self):
         return '{}({})'.format(self.__class__.__name__, self._type)
@@ -66,7 +67,7 @@ class Field(Generic[T], FieldDescriptor):
 
 class ConverterField(Field):
     def __init__(self,
-                 type_: T,  # Type[T]
+                 type_: Type[T],
                  converter: 'venom.converter.Converter' = None,
                  **kwargs) -> None:
         super().__init__(self, converter.wire, **kwargs)
@@ -109,7 +110,6 @@ class Float64(Field[float]):
 
 Number = Float64
 
-
 CT = TypeVar('CT', Field, 'MapField', 'RepeatField')
 
 
@@ -148,7 +148,7 @@ class _RepeatValueProxy(collections.MutableSequence):
 
 
 class RepeatField(Generic[CT], FieldDescriptor):
-    def __init__(self, items: CT) -> None:
+    def __init__(self, items: Type[CT]) -> None:
         self.items = items
 
     def __get__(self, instance: 'venom.message.Message', owner):
@@ -158,18 +158,18 @@ class RepeatField(Generic[CT], FieldDescriptor):
 
 
 class MapField(Generic[CT], FieldDescriptor):
-    def __init__(self, values: CT) -> None:
+    def __init__(self, values: Type[CT]) -> None:
         super().__init__()
         self.keys = String()
         self.values = values
 
 
-def Repeat(items: Union[Field, MapField, RepeatField, type], **kwargs) -> RepeatField:
+def Repeat(items: Union[Field, MapField, RepeatField, type, str], **kwargs) -> RepeatField:
     if not isinstance(items, (Field, MapField, RepeatField)):
         items = Field(items)
     return RepeatField(items, **kwargs)
 
 
-def Map(values: Union[Field, MapField, RepeatField, type], **kwargs) -> MapField:
+def Map(values: Union[Field, MapField, RepeatField, type, str], **kwargs) -> MapField:
     # TODO keys argument.
     return MapField(values, **kwargs)

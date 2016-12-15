@@ -4,7 +4,8 @@ from functools import wraps
 from typing import Union, Type, Iterable
 from unittest.mock import MagicMock
 from weakref import WeakKeyDictionary
-from venom.rpc import Venom, UnknownService, Service, RequestContext
+from venom.rpc import Venom, UnknownService, Service
+from venom.rpc.context import RequestContext
 
 
 class AsyncMock(MagicMock):
@@ -51,7 +52,7 @@ def mock_instance(service: Type[Service], *dependencies: Iterable[Type[Service]]
 
 
 def sync(coro):
-    loop = asyncio.new_event_loop()
+    loop = asyncio.get_event_loop()
     future = loop.create_task(coro)
     loop.run_until_complete(future)
     return future.result()

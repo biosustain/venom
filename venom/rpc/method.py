@@ -6,7 +6,7 @@ from typing import Callable, Any, Type, Union, Set, Dict
 
 from venom.exceptions import NotImplemented_
 from venom.message import Message
-from venom.rpc.inspection import magic
+from venom.rpc.inspection import normalize, MagicFunction
 from venom.util import AttributeDict
 
 
@@ -93,13 +93,13 @@ class Method(object):
         return locations
 
 
-
 class ServiceMethod(Method):
     def __init__(self,
                  func: Callable[..., Any],
                  request: Type[Message] = None,
                  response: Type[Message] = None,
                  name: str = None,
+                 # TODO change to typing.Coroutine in Python 3.6
                  invokable_func: Callable[['venom.rpc.service.Service', Message], Message] = None,
                  **kwargs) -> None:
         super(ServiceMethod, self).__init__(request, response, name=name, **kwargs)
@@ -120,43 +120,42 @@ class ServiceMethod(Method):
     def __set__(self, instance, value):
         raise AttributeError
 
-    def register(self, service: 'venom.rpc.service.ServiceType', name: str):
-        # TODO get request, response from stub.
-
-        if self.name is None:
-            self.name = name
-
-        stub = service.__meta__.stub
+    def _register_stub(self, stub: Type['venom.rpc.service.Service'] = None) -> None:
         if stub:
             try:
-                stub_method = stub.__methods__[name]
+                stub_method = stub.__methods__[self.name]
                 self.request = self.request or stub_method.request
                 self.response = self.response or stub_method.response
             except KeyError:
                 pass  # method not specified in stub
 
-        converters = [c() if isinstance(c, type) else c for c in service.__meta__.converters]
-        magic_func = magic(self._func,
-                           request=self.request,
-                           response=self.response,
-                           converters=converters)
+    def _normalize_func(self, service: Type['venom.rpc.service.Service']) -> MagicFunction:
+        return normalize(self._func,
+                         request=self.request,
+                         response=self.response,
+                         converters=service.__meta__.converters)
 
+    def register(self, service: Type['venom.rpc.service.Service'], name: str):
+        # TODO Use Python 3.6 __set_name__()
+        if self.name is None:
+            self.name = name
+
+        self._register_stub(service.__meta__.stub)
+
+        normal_func = self._normalize_func(service)
         return self.__class__(self._func,
-                              request=magic_func.request,
-                              response=magic_func.response,
+                              request=normal_func.request,
+                              response=normal_func.response,
                               name=name,
-                              invokable_func=magic_func.invokable,
+                              invokable_func=normal_func.invokable,
                               http_rule=self._http_rule,
                               http_verb=self._http_verb,
                               http_status=self.http_status,
                               **self.options)
 
     async def invoke(self, instance: 'venom.service.Service', request: Message):
-        # TODO determine if iscoroutinefunction() ahead of time and convert _invokable_func if necessary.
         try:
-            response = self._invokable_func(instance, request)
-            if asyncio.iscoroutine(response) or isinstance(response, asyncio.Future):
-                return await response
+            return await self._invokable_func(instance, request)
         except NotImplementedError:
             raise NotImplemented_()
         return response

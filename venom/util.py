@@ -1,5 +1,7 @@
+from typing import Dict, Any, Tuple
 
 
+# FIXME should be Generic
 class AttributeDict(dict):
     __getattr__ = dict.__getitem__
     __setattr__ = dict.__setitem__
@@ -12,8 +14,10 @@ def _meta_obj_to_dict(meta_obj):
             dct[k] = v
     return dct
 
+# FIXME should be AttributeDict[str, Any]
+MetaDict = AttributeDict
 
-def meta(bases, members, meta_name='Meta'):
+def meta(bases, members, meta_name='Meta') -> Tuple[MetaDict, MetaDict]:
     meta_ = AttributeDict()
     for base in bases:
         if hasattr(base, meta_name):
