@@ -52,7 +52,12 @@ def mock_instance(service: Type[Service], *dependencies: Iterable[Type[Service]]
 
 
 def sync(coro):
-    loop = asyncio.get_event_loop()
+    try:
+        loop = asyncio.get_event_loop()
+    except:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
     future = loop.create_task(coro)
     loop.run_until_complete(future)
     return future.result()
