@@ -6,7 +6,7 @@ from venom import Empty, Message
 from venom.common import Int64ValueConverter, Int32ValueConverter, IntegerValueConverter, StringValueConverter
 from venom.common import IntegerValue, StringValue
 from venom.fields import Int64, String, Repeat
-from venom.rpc.inspection import normalize
+from venom.rpc.inspection import magic_normalize
 from venom.rpc.resolver import Resolver
 from venom.rpc.test_utils import AioTestCase
 
@@ -16,7 +16,7 @@ class InspectionTestCase(AioTestCase):
         def func(self, request: Empty) -> Empty:
             return Empty()
 
-        inspect = normalize(func)
+        inspect = magic_normalize(func)
         self.assertEqual(inspect.request, Empty)
         self.assertEqual(inspect.response, Empty)
         self.assertEqual(await inspect.invokable(None, Empty()), Empty())
@@ -24,21 +24,21 @@ class InspectionTestCase(AioTestCase):
         def func(self, request: Empty) -> None:
             return None
 
-        inspect = normalize(func)
+        inspect = magic_normalize(func)
         self.assertEqual(inspect.response, Empty)
         self.assertEqual(await inspect.invokable(None, Empty()), Empty())
 
         def func(self, request: Empty):
             return 42
 
-        inspect = normalize(func, response=Empty)
+        inspect = magic_normalize(func, response=Empty)
         self.assertEqual(inspect.response, Empty)
         self.assertEqual(await inspect.invokable(None, Empty()), Empty())
 
         def func(self, request: Empty):
             return 42
 
-        inspect = normalize(func)
+        inspect = magic_normalize(func)
         self.assertEqual(inspect.response, Empty)
         self.assertEqual(await inspect.invokable(None, Empty()), Empty())
 
@@ -46,7 +46,7 @@ class InspectionTestCase(AioTestCase):
         def func(self) -> IntegerValue:
             return IntegerValue(42)
 
-        inspect = normalize(func)
+        inspect = magic_normalize(func)
         self.assertEqual(inspect.response, IntegerValue)
         self.assertEqual(inspect.request, Empty)
         self.assertEqual(await inspect.invokable(None, Empty()), IntegerValue(42))
@@ -56,7 +56,7 @@ class InspectionTestCase(AioTestCase):
         def func(self) -> int:
             return 42
 
-        inspect = normalize(func, converters=[Int64ValueConverter(), Int32ValueConverter()])
+        inspect = magic_normalize(func, converters=[Int64ValueConverter(), Int32ValueConverter()])
         self.assertEqual(inspect.response, IntegerValue)
         self.assertEqual(inspect.request, Empty)
         self.assertEqual(await inspect.invokable(None, Empty()), IntegerValue(42))
@@ -64,7 +64,7 @@ class InspectionTestCase(AioTestCase):
         def func(self) -> str:
             return 'foo'
 
-        inspect = normalize(func, converters=[IntegerValueConverter(), StringValueConverter()])
+        inspect = magic_normalize(func, converters=[IntegerValueConverter(), StringValueConverter()])
         self.assertEqual(inspect.response, StringValue)
         self.assertEqual(inspect.request, Empty)
         self.assertEqual(await inspect.invokable(None, Empty()), StringValue('foo'))
@@ -73,7 +73,7 @@ class InspectionTestCase(AioTestCase):
             def func(self) -> int:
                 return 42
 
-            inspect = normalize(func, converters=[StringValueConverter()])
+            inspect = magic_normalize(func, converters=[StringValueConverter()])
 
     @SkipTest
     def test_magic_map_return_value(self):
@@ -89,7 +89,7 @@ class InspectionTestCase(AioTestCase):
         def func(self, request: IntegerValue) -> IntegerValue:
             return IntegerValue(request.value)
 
-        inspect = normalize(func)
+        inspect = magic_normalize(func)
         self.assertEqual(inspect.response, IntegerValue)
         self.assertEqual(inspect.request, IntegerValue)
         self.assertEqual(await inspect.invokable(None, IntegerValue(42)), IntegerValue(42))
@@ -98,7 +98,7 @@ class InspectionTestCase(AioTestCase):
         def func(self, value: int) -> IntegerValue:
             return IntegerValue(value)
 
-        inspect = normalize(func, request=IntegerValue)
+        inspect = magic_normalize(func, request=IntegerValue)
         self.assertEqual(inspect.response, IntegerValue)
         self.assertEqual(inspect.request, IntegerValue)
         self.assertEqual(await inspect.invokable(None, IntegerValue(42)), IntegerValue(42))
@@ -106,7 +106,7 @@ class InspectionTestCase(AioTestCase):
         def func(self) -> IntegerValue:
             return IntegerValue(42)
 
-        inspect = normalize(func, request=IntegerValue)
+        inspect = magic_normalize(func, request=IntegerValue)
         self.assertEqual(inspect.response, IntegerValue)
         self.assertEqual(inspect.request, IntegerValue)
         self.assertEqual(await inspect.invokable(None, IntegerValue(42)), IntegerValue(42))
@@ -118,7 +118,7 @@ class InspectionTestCase(AioTestCase):
         def func(self, name: str, size: int, hungry: bool = True) -> Snake:
             return Snake(name, size - hungry)
 
-        inspect = normalize(func, request=Snake)
+        inspect = magic_normalize(func, request=Snake)
         self.assertEqual(inspect.response, Snake)
         self.assertEqual(inspect.request, Snake)
         self.assertEqual(await inspect.invokable(None, Snake('snek', 3)), Snake('snek', 2))
@@ -127,7 +127,7 @@ class InspectionTestCase(AioTestCase):
             def func() -> IntegerValue:
                 return IntegerValue(42)
 
-            inspect = normalize(func, request=IntegerValue)
+            inspect = magic_normalize(func, request=IntegerValue)
 
     @SkipTest
     def test_magic_request_message_unpack_map_param(self):
@@ -152,7 +152,7 @@ class InspectionTestCase(AioTestCase):
         def func(self, request: int) -> IntegerValue:
             return IntegerValue(request)
 
-        inspect = normalize(func)
+        inspect = magic_normalize(func)
         self.assertEqual(inspect.response, IntegerValue)
         self.assertEqual(inspect.request, IntegerValue)
         self.assertEqual(inspect.invokable(None, IntegerValue(42)), IntegerValue(42))
@@ -178,7 +178,7 @@ class InspectionTestCase(AioTestCase):
             self.assertEqual(foo.request, request)
             return IntegerValue(request.value)
 
-        inspect = normalize(func, additional_args=(FooResolver,))
+        inspect = magic_normalize(func, additional_args=(FooResolver,))
         self.assertEqual(inspect.response, IntegerValue)
         self.assertEqual(inspect.request, IntegerValue)
         self.assertEqual(await inspect.invokable(None, IntegerValue(42)), IntegerValue(42))

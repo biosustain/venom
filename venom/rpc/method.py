@@ -6,7 +6,7 @@ from typing import Callable, Any, Type, Union, Set, Dict
 
 from venom.exceptions import NotImplemented_
 from venom.message import Message
-from venom.rpc.inspection import normalize, MagicFunction
+from venom.rpc.inspection import magic_normalize, MessageFunction
 from venom.util import AttributeDict
 
 
@@ -95,19 +95,19 @@ class Method(object):
 
 class ServiceMethod(Method):
     def __init__(self,
-                 func: Callable[..., Any],
+                 fn: Callable[..., Any],
                  request: Type[Message] = None,
                  response: Type[Message] = None,
                  name: str = None,
                  # TODO change to typing.Coroutine in Python 3.6
-                 invokable_func: Callable[['venom.rpc.service.Service', Message], Message] = None,
+                 invokable_fn: Callable[['venom.rpc.service.Service', Message], Message] = None,
                  **kwargs) -> None:
         super(ServiceMethod, self).__init__(request, response, name=name, **kwargs)
-        self._func = func
-        if invokable_func:
-            self._invokable_func = invokable_func
+        self._fn = fn
+        if invokable_fn:
+            self._invokable_fn = invokable_fn
         else:
-            self._invokable_func = func
+            self._invokable_fn = fn
 
     # NOTE: typing does not understand descriptors yet. There will be (inaccurate) warnings because the IDE
     #       cannot resolve this.
@@ -115,7 +115,7 @@ class ServiceMethod(Method):
         if instance is None:
             return self
         else:
-            return MethodType(self._func, instance)
+            return MethodType(self._fn, instance)
 
     def __set__(self, instance, value):
         raise AttributeError
@@ -129,11 +129,11 @@ class ServiceMethod(Method):
             except KeyError:
                 pass  # method not specified in stub
 
-    def _normalize_func(self, service: Type['venom.rpc.service.Service']) -> MagicFunction:
-        return normalize(self._func,
-                         request=self.request,
-                         response=self.response,
-                         converters=service.__meta__.converters)
+    def _normalize_fn(self, service: Type['venom.rpc.service.Service']) -> MessageFunction:
+        return magic_normalize(self._fn,
+                               request=self.request,
+                               response=self.response,
+                               converters=service.__meta__.converters)
 
     def register(self, service: Type['venom.rpc.service.Service'], name: str):
         # TODO Use Python 3.6 __set_name__()
@@ -142,12 +142,12 @@ class ServiceMethod(Method):
 
         self._register_stub(service.__meta__.stub)
 
-        normal_func = self._normalize_func(service)
-        return self.__class__(self._func,
-                              request=normal_func.request,
-                              response=normal_func.response,
+        message_fn = self._normalize_fn(service)
+        return self.__class__(self._fn,
+                              request=message_fn.request,
+                              response=message_fn.response,
                               name=name,
-                              invokable_func=normal_func.invokable,
+                              invokable_fn=message_fn.invokable,
                               http_rule=self._http_rule,
                               http_verb=self._http_verb,
                               http_status=self.http_status,
@@ -155,7 +155,7 @@ class ServiceMethod(Method):
 
     async def invoke(self, instance: 'venom.service.Service', request: Message):
         try:
-            return await self._invokable_func(instance, request)
+            return await self._invokable_fn(instance, request)
         except NotImplementedError:
             raise NotImplemented_()
         return response

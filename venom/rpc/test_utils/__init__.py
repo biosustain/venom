@@ -54,7 +54,7 @@ def mock_instance(service: Type[Service], *dependencies: Iterable[Type[Service]]
 def sync(coro):
     try:
         loop = asyncio.get_event_loop()
-    except:
+    except RuntimeError:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 

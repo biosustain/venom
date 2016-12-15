@@ -12,21 +12,20 @@ from venom.converter import Converter
 from venom.message import Empty, Message, get_or_default
 from venom.rpc.resolver import Resolver
 
-MagicFunction = NamedTuple('MagicFunction', [
+MessageFunction = NamedTuple('MessageFunction', [
     ('request', Type[Message]),
     ('response', Type[Message]),
-    ('func', Callable[..., Any]),
-    ('invokable', Callable[[Any, Message], Message])
+    ('invokable', Callable[[Any, Message], Message])  # TODO update to typing.Coroutine in Python 3.6
 ])
 
 
 # TODO name arg for use with auto-generation
-def normalize(func: Callable[..., Any],
-              request: Type[Message] = None,
-              response: Type[Message] = None,
-              converters: Sequence[Converter] = (),
-              # TODO replace with Sequence[Union[Converter, Type[Converter]]] see https://github.com/python/typing/issues/266
-          additional_args: Sequence[Resolver] = ()) -> MagicFunction:
+def magic_normalize(func: Callable[..., Any],
+                    request: Type[Message] = None,
+                    response: Type[Message] = None,
+                    converters: Sequence[Converter] = (),
+                    # TODO replace with Sequence[Union[Converter, Type[Converter]]] see https://github.com/python/typing/issues/266
+                    additional_args: Sequence[Resolver] = ()) -> MessageFunction:
     """
 
     :param func:
@@ -182,7 +181,6 @@ def normalize(func: Callable[..., Any],
         wrap_args = lambda req: ()
         wrap_kwargs = lambda req: {f: get_or_default(req, f, d) for f, d in unpack_request}
 
-
     if response == Empty and return_type != Empty:
         wrap_response = lambda res: Empty()
     elif response_converter:
@@ -209,4 +207,4 @@ def normalize(func: Callable[..., Any],
         async def invokable(inst, req: Message) -> Message:
             return wrap_response(await func(inst, *wrap_args(req), **wrap_kwargs(req)))
 
-    return MagicFunction(request, response, func, wraps(func)(invokable))
+    return MessageFunction(request, response, wraps(func)(invokable))
