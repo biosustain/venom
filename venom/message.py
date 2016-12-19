@@ -1,9 +1,9 @@
 from abc import ABCMeta
 from collections import MutableMapping
 from collections import OrderedDict
-from typing import Any, Dict, Type
+from typing import Any, Dict, Type, Iterable
 
-from venom.fields import Field, FieldDescriptor
+from venom.fields import FieldDescriptor
 from venom.util import meta
 
 
@@ -47,7 +47,7 @@ class MessageMeta(ABCMeta):
 
 class Message(MutableMapping, metaclass=MessageMeta):
     __slots__ = ('_values',)
-    __fields__ = None  # type: Dict[str, Field]
+    __fields__ = None  # type: Dict[str, FieldDescriptor]
     __meta__ = None  # type: Dict[str, Any]
 
     class Meta:
@@ -64,6 +64,10 @@ class Message(MutableMapping, metaclass=MessageMeta):
                 self._values[key] = value
         else:
             self._values = {key: value for key, value in kwargs.items()}
+
+    @classmethod
+    def fields(cls) -> Iterable[FieldDescriptor]:
+        return cls.__fields__.values()
 
     @classmethod
     def from_object(cls, obj):
