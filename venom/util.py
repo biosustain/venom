@@ -20,8 +20,10 @@ MetaDict = AttributeDict
 def meta(bases, members, meta_name='Meta') -> Tuple[MetaDict, MetaDict]:
     meta_ = AttributeDict()
     for base in bases:
-        if hasattr(base, meta_name):
-            meta_.update(_meta_obj_to_dict(base.Meta))
+        if hasattr(base, '__meta__') and base.__meta__ is not None:
+            meta_.update(base.__meta__)
+        elif hasattr(base, meta_name):
+            meta_.update(_meta_obj_to_dict(getattr(base, meta_name)))
 
     changes = {}
     if meta_name in members:
