@@ -16,3 +16,6 @@ class Converter(metaclass=ABCMeta):
     @abstractmethod
     def format(self, value: Any) -> Message:
         pass
+
+    def __repr__(self):
+        return '<converter {}[{}, {}]>'.format(self.__class__.__name__, self.python.__name__, self.wire.__name__)
