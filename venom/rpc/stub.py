@@ -13,9 +13,9 @@ class Stub(Service):
         super().__init__(venom, context)
         self._client = client
 
-    async def invoke_(self, rpc, request):
+    async def invoke_(self, rpc, request, loop: 'asyncio.BaseEventLoop' = None):
         if self._client:
-            return await self._client.invoke(self, rpc, request)
+            return await self._client.invoke(self, rpc, request, loop=loop)
         raise NotImplementedError
 
 
@@ -31,14 +31,20 @@ class RPC(Method):
     def __set__(self, instance, value):
         raise AttributeError
 
-    async def _invoke(self, service: 'venom.rpc.service.Service', request: 'venom.Message') -> 'venom.Message':
+    async def _invoke(self,
+                      service: 'venom.rpc.service.Service',
+                      request: 'venom.Message',
+                      loop: 'asyncio.BaseEventLoop' = None) -> 'venom.Message':
         if isinstance(service, Stub):
-            return await service.invoke_(self, request)
+            return await service.invoke_(self, request, loop=loop)
         raise NotImplementedError
 
-    async def invoke(self, service: 'venom.rpc.service.Service', request: 'venom.Message') -> 'venom.Message':
+    async def invoke(self,
+                     service: 'venom.rpc.service.Service',
+                     request: 'venom.Message',
+                     loop: 'asyncio.BaseEventLoop' = None) -> 'venom.Message':
         try:
-            return await self._invoke(service, request)
+            return await self._invoke(service, request, loop=loop)
         except NotImplementedError:
             raise NotImplemented_()
 

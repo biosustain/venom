@@ -1,8 +1,7 @@
 import asyncio
-from asyncio import gather
 from functools import wraps
 from inspect import signature, Parameter
-from typing import Callable, Any, Sequence, get_type_hints, Type, NamedTuple
+from typing import Callable, Any, Sequence, get_type_hints, Type, NamedTuple, Optional
 from typing import Tuple
 from typing import Union
 from venom.fields import RepeatField, MapField
@@ -15,7 +14,7 @@ from venom.rpc.resolver import Resolver
 MessageFunction = NamedTuple('MessageFunction', [
     ('request', Type[Message]),
     ('response', Type[Message]),
-    ('invokable', Callable[[Any, Message], Message])  # TODO update to typing.Coroutine in Python 3.6
+    ('invokable', Callable[[Any, Message, Optional['asyncio.BaseEventLoop']], Message])  # TODO update to typing.Coroutine in Python 3.6
 ])
 
 
@@ -197,14 +196,14 @@ def magic_normalize(func: Callable[..., Any],
 
     # TODO (optimization) do not wrap what does not need to be wrapped
     if additional_args:
-        async def invokable(inst, req: Message) -> Message:
+        async def invokable(inst, req: Message, loop: 'asyncio.BaseEventLoop' = None) -> Message:
             return wrap_response(await func(inst,
                                             *(await asyncio.gather(*[arg.resolve(inst, req)
-                                                                     for arg in additional_args])),
+                                                                     for arg in additional_args], loop=loop)),
                                             *wrap_args(req),
                                             **wrap_kwargs(req)))
     else:
-        async def invokable(inst, req: Message) -> Message:
+        async def invokable(inst, req: Message, loop: 'asyncio.BaseEventLoop' = None) -> Message:
             return wrap_response(await func(inst, *wrap_args(req), **wrap_kwargs(req)))
 
     return MessageFunction(request, response, wraps(func)(invokable))

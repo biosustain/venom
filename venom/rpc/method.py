@@ -2,11 +2,13 @@ import asyncio
 import enum
 import re
 from types import MethodType
-from typing import Callable, Any, Type, Union, Set, Dict
+from typing import Callable, Any, Type, Union, Set, Dict, Sequence, Tuple
 
+from venom.converter import Converter
 from venom.exceptions import NotImplemented_
 from venom.message import Message
-from venom.rpc.inspection import magic_normalize, MessageFunction
+from venom.rpc.inspection import magic_normalize
+from venom.rpc.resolver import Resolver
 from venom.util import AttributeDict
 
 
@@ -52,7 +54,10 @@ class Method(object):
         return self
 
     # TODO Error handling. Only errors that are venom.exceptions.Error instances should be raised
-    async def invoke(self, instance: 'venom.rpc.service.Service', request: Message) -> Message:
+    async def invoke(self,
+                     instance: 'venom.rpc.service.Service',
+                     request: Message,
+                     loop: 'asyncio.BaseEventLoop' = None) -> Message:
         raise NotImplementedError
 
     @property
@@ -129,20 +134,23 @@ class ServiceMethod(Method):
             except KeyError:
                 pass  # method not specified in stub
 
-    def _normalize_fn(self, service: Type['venom.rpc.service.Service']) -> MessageFunction:
-        return magic_normalize(self._fn,
-                               request=self.request,
-                               response=self.response,
-                               converters=service.__meta__.converters)
-
-    def register(self, service: Type['venom.rpc.service.Service'], name: str):
+    def register(self,
+                 service: Type['venom.rpc.service.Service'],
+                 name: str,
+                 *args: Tuple[Resolver, ...],
+                 converters: Sequence[Converter] = ()):
         # TODO Use Python 3.6 __set_name__()
         if self.name is None:
             self.name = name
 
-        self._register_stub(service.__meta__.stub)
+        self._register_stub(service.__meta__.get('stub', None))
 
-        message_fn = self._normalize_fn(service)
+        message_fn = magic_normalize(self._fn,
+                                     request=self.request,
+                                     response=self.response,
+                                     additional_args=args,
+                                     converters=tuple(converters) + tuple(service.__meta__.converters))
+
         return self.__class__(self._fn,
                               request=message_fn.request,
                               response=message_fn.response,
@@ -153,9 +161,12 @@ class ServiceMethod(Method):
                               http_status=self.http_status,
                               **self.options)
 
-    async def invoke(self, instance: 'venom.service.Service', request: Message):
+    async def invoke(self,
+                     instance: 'venom.service.Service',
+                     request: Message,
+                     loop: 'asyncio.BaseEventLoop' = None):
         try:
-            return await self._invokable_fn(instance, request)
+            return await self._invokable_fn(instance, request, loop=loop)
         except NotImplementedError:
             raise NotImplemented_()
         return response

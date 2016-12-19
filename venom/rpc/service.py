@@ -15,10 +15,6 @@ class ServiceManager(object):
     def __init__(self, service: Type['Service'], meta: MetaDict, meta_changes: MetaDict):
         self.service = service
 
-    @classmethod
-    def prepare_meta(cls, meta: MetaDict, meta_changes: MetaDict) -> MetaDict:
-        return meta
-
     @staticmethod
     def generate_service_name(cls_name: str) -> str:
         name = cls_name.lower()
@@ -37,8 +33,11 @@ class ServiceMeta(type):
         cls.__methods__ = methods = {}  # TODO change to tuple, but still prevent multiple methods with same name.
         cls.__messages__ = messages = set()
 
-        meta_, meta_changes = meta(bases, members)
-        cls.__meta__ = meta_.manager.prepare_meta(meta_, meta_changes)
+        cls.__meta__, meta_changes = meta(bases, members)
+
+        if not meta_changes.get('name', None):
+            cls.__meta__.name = cls.__meta__.manager.generate_service_name(name)
+
         cls.__manager__ = manager = cls.__meta__.manager(cls, cls.__meta__, meta_changes)
 
         for n, m in inspect.getmembers(cls):
@@ -54,9 +53,6 @@ class ServiceMeta(type):
             for n, m in meta_changes['stub'].__methods__.items():
                 if n not in cls.__methods__:
                     cls.__methods__[n] = manager.register_method(m, n)
-
-        if not meta_changes.get('name', None):
-            cls.__meta__.name = manager.generate_service_name(name)
 
         return cls
 
