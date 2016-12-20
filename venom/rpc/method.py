@@ -74,11 +74,17 @@ class Method(object):
             return 200  # OK
         return self._http_status
 
-    def http_rule(self, service: 'venom.Service') -> str:
-        service_http_rule = '/' + service.__meta__.name.lower().replace('_', '-')
-        if self._http_rule is None:
-            return service_http_rule + '/' + self.name.lower().replace('_', '-')
-        return service_http_rule + self._http_rule
+    def http_rule(self, service: 'venom.Service' = None) -> str:
+        default_http_rule = self.name.lower().replace('_', '-')
+        if service:
+            service_http_rule = '/' + service.__meta__.name.lower().replace('_', '-')
+            if self._http_rule is None:
+                return service_http_rule + '/' + default_http_rule
+            return service_http_rule + self._http_rule
+        elif self._http_rule is None:
+            return default_http_rule
+        else:
+            return self._http_rule
 
     def http_path_params(self) -> Set[str]:
         return set(m.group(1) for m in re.finditer(_RULE_PARAMETER_RE, self._http_rule or ''))
