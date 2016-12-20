@@ -157,4 +157,4 @@ def string_decoder(field: Field, wire_format: Type[WireFormat]):
     if field.type in (int, str):
         return lambda value: _cast(field.type, value)
     # TODO support boolean etc. (with wire formats that allow it)
-    raise NotImplementedError()
+    raise NotImplementedError('Unable to resolve {} from strings'.format(field))
