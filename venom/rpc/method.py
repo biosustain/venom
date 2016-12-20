@@ -6,7 +6,7 @@ from typing import Callable, Any, Type, Union, Set, Dict, Sequence, Tuple
 
 from venom.converter import Converter
 from venom.exceptions import NotImplemented_
-from venom.message import Message
+from venom.message import Message, Empty
 from venom.rpc.inspection import magic_normalize
 from venom.rpc.resolver import Resolver
 from venom.util import AttributeDict
@@ -30,14 +30,14 @@ class Method(object):
                  name: str = None,
                  http_verb: 'HTTPVerb' = None,
                  http_rule: str = None,
-                 http_status: int = 200,
+                 http_status: int = None,
                  **options) -> None:
         self.request = request
         self.response = response
         self.name = name
         self._http_rule = http_rule
         self._http_verb = http_verb
-        self.http_status = http_status
+        self._http_status = http_status
         self.options = AttributeDict(options)
 
     def register(self, service: Type['venom.rpc.service.Service'], name: str) -> 'Method':
@@ -65,6 +65,14 @@ class Method(object):
         if self._http_verb is None:
             return HTTPVerb.POST
         return self._http_verb
+
+    @property
+    def http_status(self) -> int:
+        if self._http_status is None:
+            if self.response == Empty:
+                return 204  # No Content
+            return 200  # OK
+        return self._http_status
 
     def http_rule(self, service: 'venom.Service') -> str:
         service_http_rule = '/' + service.__meta__.name.lower().replace('_', '-')
@@ -158,7 +166,7 @@ class ServiceMethod(Method):
                               invokable_fn=message_fn.invokable,
                               http_rule=self._http_rule,
                               http_verb=self._http_verb,
-                              http_status=self.http_status,
+                              http_status=self._http_status,
                               **self.options)
 
     async def invoke(self,
@@ -191,8 +199,8 @@ def http(verb: HTTPVerb, rule=None, *args, **kwargs):
     return rpc(*args, http_verb=verb, http_rule=rule, **kwargs)
 
 
-def _http_method_decorator(verb):
-    def decorator(*args, method_cls=ServiceMethod, **kwargs):
+def http_method_decorator(verb, method_cls=ServiceMethod):
+    def decorator(*args, method_cls=method_cls, **kwargs):
         if len(args) == 1 and len(kwargs) == 0 and callable(args[0]):
             return method_cls(args[0], http_verb=verb)
         else:
@@ -203,4 +211,4 @@ def _http_method_decorator(verb):
 
 
 for _verb in HTTPVerb:
-    setattr(http, _verb.name, _http_method_decorator(_verb))
+    setattr(http, _verb.name, http_method_decorator(_verb))
