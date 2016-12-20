@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from unittest import TestCase, SkipTest
-from venom.message import Message
+from venom.message import Message, from_object
 from venom.fields import String, Integer
 
 
@@ -26,7 +26,7 @@ class MessageTestCase(TestCase):
         class Pet(Message):
             name = String(attribute="alias")
 
-        self.assertEqual("Foo", Pet.from_object({"name": "Foo"}).name)
+        self.assertEqual("Foo", from_object(Pet, {"name": "Foo"}).name)
 
     def test_message_ordered_fields(self):
         class Pet(Message):

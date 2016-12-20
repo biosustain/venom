@@ -1,7 +1,7 @@
 from abc import ABCMeta
 from collections import MutableMapping
 from collections import OrderedDict
-from typing import Any, Dict, Type, Iterable
+from typing import Any, Dict, Type, Iterable, TypeVar
 
 from venom.fields import FieldDescriptor
 from venom.util import meta
@@ -65,28 +65,6 @@ class Message(MutableMapping, metaclass=MessageMeta):
         else:
             self._values = {key: value for key, value in kwargs.items()}
 
-    @classmethod
-    def fields(cls) -> Iterable[FieldDescriptor]:
-        return cls.__fields__.values()
-
-    @classmethod
-    def from_object(cls, obj):
-        kwargs = {}
-
-        for key, field in cls.__fields__.items():
-            if hasattr(obj, '__getitem__'):
-                try:
-                    kwargs[key] = obj[key]
-                    continue
-                except (IndexError, TypeError, KeyError):
-                    pass
-            try:
-                kwargs[key] = getattr(obj, key)
-            except AttributeError:
-                pass
-
-        return cls(**kwargs)
-
     def __getitem__(self, key):
         return self._values[key]
 
@@ -111,6 +89,32 @@ class Message(MutableMapping, metaclass=MessageMeta):
             if key in self._values:
                 parts.append('{}={}'.format(key, repr(self._values[key])))
         return '{}({})'.format(self.__meta__.name, ', '.join(parts))
+
+
+def fields(message: Type[Message]) -> Iterable[FieldDescriptor]:
+    return message.__fields__.values()
+
+
+M = TypeVar('M')
+
+
+def from_object(message: Type[M], obj: Any) -> M:
+    kwargs = {}
+
+    for name in message.__fields__.keys():
+        if hasattr(obj, '__getitem__'):
+            # TODO skip None values
+            try:
+                kwargs[name] = obj[name]
+                continue
+            except (IndexError, TypeError, KeyError):
+                pass
+        try:
+            kwargs[name] = getattr(obj, name)
+        except AttributeError:
+            pass
+
+    return message(**kwargs)
 
 
 def one_of(*choices):
