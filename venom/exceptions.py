@@ -22,7 +22,6 @@ class ErrorResponse(Message):
         raise RuntimeError('HTTP status {}: {}'.format(self.status, self.message))
 
 
-
 class Error(Exception):
     http_status = 500
     message = ''
@@ -44,6 +43,11 @@ class NotFound(Error):
 class BadRequest(Error):
     http_status = 400
     message = 'Bad Request'
+
+
+class Conflict(Error):
+    http_status = 409
+    message = 'Conflict'
 
 
 class ServerError(Error):
