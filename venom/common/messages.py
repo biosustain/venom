@@ -1,6 +1,6 @@
-from typing import Iterable, Any
+from typing import Iterable, Any, Tuple
 
-from venom.fields import String, Int32, Int64, Bool, Float32, Float64
+from venom.fields import String, Int32, Int64, Bool, Float32, Float64, Repeat
 from venom.message import Message
 
 
@@ -79,9 +79,38 @@ NumberValue.__meta__.wire_formats[_JSON] = _JSONValue(NumberValue)
 BoolValue.__meta__.wire_formats[_JSON] = _JSONValue(BoolValue)
 
 
+class FieldMask(Message):
+    paths = Repeat(String())
+
+    class Meta:
+        proto_package = 'google.protobuf'
+
+    # TODO needs tests
+    def is_match(self, *path: Tuple[str]) -> bool:
+        for level in range(len(path)):
+            match_path = '.'.join(path[:level + 1])
+            for path_ in self.paths:
+                if match_path in path_:
+                    return True
+        return False
+
+
+class _JSONFieldMask(_JSON):
+    def encode(self, message: FieldMask):
+        return ','.join(message.paths)
+
+    def decode(self, instance: Any, skip: Iterable[str] = ()) -> Message:
+        paths = self._cast(str, instance)
+        return self._format(paths.split(','))
+
+
+FieldMask.__meta__.wire_formats[_JSON] = _JSONFieldMask(FieldMask)
+
+
 class Timestamp(Message):
     seconds = Int64()
     nanos = Int32()
 
     class Meta:
         proto_package = 'google.protobuf'
+
