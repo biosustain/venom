@@ -86,7 +86,7 @@ class FieldMask(Message):
         proto_package = 'google.protobuf'
 
     # TODO needs tests
-    def is_match(self, *path: Tuple[str]) -> bool:
+    def match_path(self, *path: Tuple[str]) -> bool:
         for level in range(len(path)):
             match_path = '.'.join(path[:level + 1])
             for path_ in self.paths:
