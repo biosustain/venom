@@ -17,6 +17,7 @@ def _meta_obj_to_dict(meta_obj):
 # FIXME should be AttributeDict[str, Any]
 MetaDict = AttributeDict
 
+
 def meta(bases, members, meta_name='Meta') -> Tuple[MetaDict, MetaDict]:
     meta_ = AttributeDict()
     for base in bases:
@@ -29,7 +30,7 @@ def meta(bases, members, meta_name='Meta') -> Tuple[MetaDict, MetaDict]:
     if meta_name in members:
         changes = _meta_obj_to_dict(members[meta_name])
         meta_.update(changes)
-    return meta_, changes
+    return meta_, AttributeDict(changes)
 
 
 def upper_camelcase(s: str) -> str:

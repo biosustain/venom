@@ -80,9 +80,8 @@ class Method(object):
         else:
             http_rule = self._http_rule
 
-        if service:
-            service_http_rule = '/' + service.__meta__.name.lower().replace('_', '-')
-            return service_http_rule + http_rule
+        if service is not None:
+            return service.__meta__.http_rule + http_rule
         return http_rule
 
     def http_path_params(self) -> Set[str]:

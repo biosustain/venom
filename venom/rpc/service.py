@@ -23,6 +23,12 @@ class ServiceManager(object):
                 return name[:-len(postfix)]
         return name
 
+    @classmethod
+    def prepare_meta(cls, meta: MetaDict, meta_changes: MetaDict) -> MetaDict:
+        if not meta_changes.get('http_rule', None):
+            meta.http_rule = '/' + meta.name.lower().replace('_', '-')
+        return meta
+
     def register_method(self, method: Method, name: str) -> Method:
         return method.register(self.service, method.name or name)
 
@@ -33,11 +39,12 @@ class ServiceMeta(type):
         cls.__methods__ = methods = {}  # TODO change to tuple, but still prevent multiple methods with same name.
         cls.__messages__ = messages = set()
 
-        cls.__meta__, meta_changes = meta(bases, members)
+        meta_, meta_changes = meta(bases, members)
 
         if not meta_changes.get('name', None):
-            cls.__meta__.name = cls.__meta__.manager.generate_service_name(name)
+            meta_.name = meta_changes.name = meta_.manager.generate_service_name(name)
 
+        cls.__meta__ = meta_.manager.prepare_meta(meta_, meta_changes)
         cls.__manager__ = manager = cls.__meta__.manager(cls, cls.__meta__, meta_changes)
 
         for n, m in inspect.getmembers(cls):
@@ -85,3 +92,4 @@ class Service(object, metaclass=ServiceMeta):
             DateTimeConverter,
             DateConverter)
         stub = None
+        http_rule = None
