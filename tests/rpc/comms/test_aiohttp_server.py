@@ -67,12 +67,12 @@ class AioHTTPSimpleServerTestCase(AioHTTPTestCase):
     @unittest_run_loop
     async def test_route_POST_empty(self):
         response = await self.client.post("/snake/all-hiss")
-        self.assertEqual(200, response.status)
+        self.assertEqual(204, response.status)
         self.assertEqual('', await response.text())
         self.assertEqual(None, await response.json())
 
         response = await self.client.post("/snake/5/hiss", data=json.dumps({}))
-        self.assertEqual(200, response.status)
+        self.assertEqual(204, response.status)
         self.assertEqual('', await response.text())
         self.assertEqual(None, await response.json())
 
