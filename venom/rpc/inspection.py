@@ -8,7 +8,7 @@ from venom.fields import RepeatField, MapField
 
 from venom.converter import Converter
 
-from venom.message import Empty, Message, get_or_default
+from venom.message import Empty, Message
 from venom.rpc.resolver import Resolver
 
 MessageFunction = NamedTuple('MessageFunction', [
