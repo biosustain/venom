@@ -3,7 +3,8 @@ from typing import TypeVar, Generic
 
 import datetime
 
-from venom.common.messages import Int64Value, Int32Value, StringValue, Float32Value, Float64Value, BoolValue, Timestamp
+from venom.common.messages import Int64Value, Int32Value, StringValue, Float32Value, Float64Value, BoolValue, Timestamp, \
+    BytesValue
 from venom.converter import Converter
 
 V = TypeVar('V')
@@ -21,6 +22,11 @@ class _ValueConverter(Generic[V, T], Converter):
 class StringValueConverter(_ValueConverter[StringValue, str]):
     wire = StringValue
     python = str
+
+
+class BytesValueConverter(_ValueConverter[BytesValue, bytes]):
+    wire = BytesValue
+    python = bytes
 
 
 class BooleanValueConverter(_ValueConverter[StringValue, bool]):
@@ -70,10 +76,10 @@ class DateTimeConverter(Converter):
     python = datetime.datetime
 
     def convert(self, value: Timestamp) -> datetime.datetime:
-        return datetime.datetime.fromtimestamp(value.seconds + value.nanos / 10**9)
+        return datetime.datetime.fromtimestamp(value.seconds + value.nanos / 10 ** 9)
 
     def format(self, value: datetime.datetime) -> Timestamp:
         unix = calendar.timegm(value.timetuple())
         seconds = int(unix)
-        nanos = int((unix - seconds) * 10**9)
+        nanos = int((unix - seconds) * 10 ** 9)
         return Timestamp(seconds, nanos)

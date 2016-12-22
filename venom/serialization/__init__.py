@@ -1,4 +1,5 @@
 from abc import ABCMeta, abstractmethod
+from base64 import b64encode, b64decode
 from functools import partial
 from json import JSONDecodeError
 from typing import Type, TypeVar, Generic, Callable, Union, Any, Tuple, Iterable, Dict
@@ -59,8 +60,10 @@ class JSON(WireFormat):
         self.field_encoders = {key: self._field_encoder(field) for key, field in fmt.__fields__.items()}
         self.field_decoders = {key: self._field_decoder(field) for key, field in fmt.__fields__.items()}
 
+    T = TypeVar('T')
+
     @staticmethod
-    def _cast(type_: type, value: Any):
+    def _cast(type_: Type[T], value: Any) -> T:
         # TODO JSON type names, i.e. object instead of dict, integer instead of int etc.
         if not isinstance(value, type_):
             raise ValidationError("{} is not of type '{}'".format(repr(value), type_.__name__))
@@ -82,9 +85,15 @@ class JSON(WireFormat):
             field_item_encoder = self._field_encoder(field.items)
             return lambda lst: [field_item_encoder(item) for item in lst]
 
+        if not isinstance(field, Field):
+            raise NotImplementedError()
+
         if issubclass(field.type, Message):
             field_wire_format = self._get_wire_format(field.type)
             return lambda msg: field_wire_format.encode(msg)
+
+        if field.type is bytes:
+            return lambda b: b64encode(b)
 
         # assume all is JSON from here
         return lambda value: value
@@ -99,6 +108,9 @@ class JSON(WireFormat):
             field_item_decoder = self._field_decoder(field.items)
             return lambda lst: [field_item_decoder(item) for item in self._cast(list, lst)]
 
+        if not isinstance(field, Field):
+            raise NotImplementedError()
+
         if issubclass(field.type, Message):
             field_wire_format = self._get_wire_format(field.type)
             return lambda msg: field_wire_format.decode(msg)
@@ -106,6 +118,10 @@ class JSON(WireFormat):
         # an integer (int) in JSON is also a number (float), so we convert here if necessary:
         if field.type is float:
             return self._cast_number
+
+        if field.type is bytes:
+            # TODO catch TypeError
+            return lambda b: b64decode(b)
 
         return partial(self._cast, field.type)
 

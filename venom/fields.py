@@ -80,6 +80,11 @@ class String(Field[str]):
         super().__init__(str, **kwargs)
 
 
+class Bytes(Field[bytes]):
+    def __init__(self, **kwargs) -> None:
+        super().__init__(bytes, **kwargs)
+
+
 class Bool(Field[bool]):
     def __init__(self, **kwargs) -> None:
         super().__init__(bool, **kwargs)

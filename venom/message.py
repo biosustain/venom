@@ -59,17 +59,28 @@ class Message(MutableMapping, metaclass=MessageMeta):
         if args:
             self._values = {}
             for value, key in zip(args, self.__fields__.keys()):
-                self._values[key] = value
+                self[key] = value
             for key, value in kwargs.items():
-                self._values[key] = value
+                self[key] = value
         else:
-            self._values = {key: value for key, value in kwargs.items()}
+            self._values = {key: value for key, value in kwargs.items() if value is not None}
+
+    def get(self, key, default=None):
+        try:
+            return self._values[key]
+        except KeyError:
+            if default is None and key in self.__fields__:
+                return self.__fields__[key].default()
+            return default
 
     def __getitem__(self, key):
         return self._values[key]
 
     def __setitem__(self, key, value):
-        self._values[key] = value
+        if value is None:
+            del self._values[key]
+        else:
+            self._values[key] = value
 
     def __delitem__(self, key):
         del self._values[key]
@@ -93,6 +104,10 @@ class Message(MutableMapping, metaclass=MessageMeta):
 
 def fields(message: Type[Message]) -> Iterable[FieldDescriptor]:
     return message.__fields__.values()
+
+
+def field_names(message: Type[Message]) -> Iterable[FieldDescriptor]:
+    return message.__fields__.keys()
 
 
 M = TypeVar('M')
@@ -139,14 +154,3 @@ class Empty(Message):
 
 def message_factory(name: str, fields: Dict[str, FieldDescriptor]) -> Type[Message]:
     return type(name, (Message,), fields)
-
-
-def get_or_default(message: Message, key: str, default: Any = None):
-    try:
-        return message[key]
-    except KeyError as e:
-        if key in message.__fields__:
-            if default is None:
-                return message.__fields__[key].default()
-            return default
-        raise e

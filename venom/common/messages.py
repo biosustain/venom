@@ -1,11 +1,18 @@
 from typing import Iterable, Any, Tuple
 
-from venom.fields import String, Int32, Int64, Bool, Float32, Float64, Repeat
+from venom.fields import String, Int32, Int64, Bool, Float32, Float64, Repeat, Bytes
 from venom.message import Message
 
 
 class StringValue(Message):
     value = String()
+
+    class Meta:
+        proto_package = 'google.protobuf'
+
+
+class BytesValue(Message):
+    value = Bytes()
 
     class Meta:
         proto_package = 'google.protobuf'

@@ -178,7 +178,7 @@ def magic_normalize(func: Callable[..., Any],
         wrap_args = lambda req: ()
     else:
         wrap_args = lambda req: ()
-        wrap_kwargs = lambda req: {f: get_or_default(req, f, d) for f, d in unpack_request}
+        wrap_kwargs = lambda req: {f: req.get(f, d) for f, d in unpack_request}
 
     if response == Empty and return_type != Empty:
         wrap_response = lambda res: Empty()
