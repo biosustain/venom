@@ -78,7 +78,10 @@ class Message(MutableMapping, metaclass=MessageMeta):
 
     def __setitem__(self, key, value):
         if value is None:
-            del self._values[key]
+            try:
+                del self._values[key]
+            except KeyError:
+                pass
         else:
             self._values[key] = value
 
