@@ -170,6 +170,8 @@ class MapField(Generic[CT], FieldDescriptor):
 
 
 def Repeat(items: Union[Field, MapField, RepeatField, type, str], **kwargs) -> RepeatField:
+    if isinstance(items, type) and issubclass(items, Field):
+        items = items()
     if not isinstance(items, (Field, MapField, RepeatField)):
         items = Field(items)
     return RepeatField(items, **kwargs)
