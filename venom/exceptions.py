@@ -5,7 +5,7 @@ from venom.fields import Int32, String
 # TODO consider moving that into the implementations. Should at least be moved into rpc.*
 class ErrorResponse(Message):
     status = Int32()
-    message = String()
+    description = String()
 
     # TODO Repeat(String)
     path = String()
@@ -19,50 +19,64 @@ class ErrorResponse(Message):
         #     if self.status == 404:
         #         raise NotFound(self.message or '')
 
-        raise RuntimeError('HTTP status {}: {}'.format(self.status, self.message))
+        raise RuntimeError('HTTP status {}: {}'.format(self.status, self.description))
 
 
 class Error(Exception):
     http_status = 500
-    message = ''
+    description = ''
+
+    def __init__(self, message: str = None):
+        if message:
+            self.description = message
 
     def format(self) -> ErrorResponse:
-        return ErrorResponse(status=self.http_status, message=self.message)
+        return ErrorResponse(status=self.http_status, description=self.description)
 
 
 class NotImplemented_(Error):
     http_status = 501
-    message = 'Not Implemented'
+    description = 'Not Implemented'
 
 
 class NotFound(Error):
     http_status = 404
-    message = 'Not Found'
+    description = 'Not Found'
 
 
 class BadRequest(Error):
     http_status = 400
-    message = 'Bad Request'
+    description = 'Bad Request'
+
+
+class Unauthorized(Error):
+    http_status = 401
+    description = 'Unauthorized'
+
+
+class Forbidden(Error):
+    http_status = 403
+    description = 'Forbidden'
 
 
 class Conflict(Error):
     http_status = 409
-    message = 'Conflict'
+    description = 'Conflict'
 
 
 class ServerError(Error):
     http_status = 500
-    message = 'Internal Server Error'
+    description = 'Internal Server Error'
 
 
 class ValidationError(BadRequest):
     def __init__(self, message, path=None):
-        self.message = message
+        super().__init__(message)
         self.path = path or []
 
     def format(self) -> ErrorResponse:
         msg = super().format()
-        msg.message = self.message
+        msg.description = self.description
         if self.path:
            msg.path = '.'.join(self.path)
         return msg
