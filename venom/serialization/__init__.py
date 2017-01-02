@@ -2,7 +2,7 @@ from abc import ABCMeta, abstractmethod
 from base64 import b64encode, b64decode
 from functools import partial
 from json import JSONDecodeError
-from typing import Type, TypeVar, Generic, Callable, Union, Any, Tuple, Iterable, Dict
+from typing import Type, TypeVar, Generic, Callable, Union, Any, Tuple, Iterable, Dict, List
 
 from venom import Empty
 from venom import Message
@@ -51,6 +51,8 @@ except ImportError:
 
 JSONPrimitive = Union[str, int, float, bool]
 
+JSONValue = Union[JSONPrimitive, Dict[str, JSONPrimitive], List[JSONPrimitive]]
+
 
 class JSON(WireFormat):
     mime = 'application/json'
@@ -75,7 +77,7 @@ class JSON(WireFormat):
             raise ValidationError("{} is not a number".format(value))
         return float(value)
 
-    def _field_encoder(self, field: FieldDescriptor) -> Callable[[Any], JSONPrimitive]:
+    def _field_encoder(self, field: FieldDescriptor) -> Callable[[Any], JSONValue]:
         if isinstance(field, ConverterField):
             field_converter = field.converter
             field_wire_format = self._get_wire_format(field_converter.wire)
@@ -98,7 +100,7 @@ class JSON(WireFormat):
         # assume all is JSON from here
         return lambda value: value
 
-    def _field_decoder(self, field: FieldDescriptor) -> Callable[[JSONPrimitive], Any]:
+    def _field_decoder(self, field: FieldDescriptor) -> Callable[[JSONValue], Any]:
         if isinstance(field, ConverterField):
             field_converter = field.converter
             field_wire_format = self._get_wire_format(field_converter.wire)
