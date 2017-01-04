@@ -96,7 +96,7 @@ class AioHTTPSimpleServerTestCase(AioHTTPTestCase):
     async def test_route_400_error(self):
         response = await self.client.post("/snake", data=json.dumps({'name': 42}))
         self.assertEqual(400, response.status)
-        self.assertEqual({'message': "42 is not of type 'str'", 'path': 'name', 'status': 400},
+        self.assertEqual({'description': "42 is not of type 'str'", 'path': 'name', 'status': 400},
                          await response.json())
 
     @SkipTest
@@ -113,4 +113,4 @@ class AioHTTPSimpleServerTestCase(AioHTTPTestCase):
         # TODO not supported yet
         response = await self.client.get("/snake/status/501")
         # self.assertEqual(500, response.status)
-        self.assertEqual({'status': 501, 'message': 'Not Implemented'}, await response.json())
+        self.assertEqual({'status': 501, 'description': 'Not Implemented'}, await response.json())

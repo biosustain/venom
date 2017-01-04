@@ -27,7 +27,7 @@ class JSONWireFormatTestCase(TestCase):
         with self.assertRaises(ValidationError) as e:
             wire_format.decode('bad')
 
-        self.assertEqual(e.exception.message, "'bad' is not of type 'dict'")
+        self.assertEqual(e.exception.description, "'bad' is not of type 'dict'")
         self.assertEqual(e.exception.path, [])
 
     @SkipTest
@@ -57,7 +57,7 @@ class JSONWireFormatTestCase(TestCase):
         with self.assertRaises(ValidationError) as e:
             wire_format.decode({'sounds': 'meow, purr'})
 
-        self.assertEqual(e.exception.message, "'meow, purr' is not of type 'list'")
+        self.assertEqual(e.exception.description, "'meow, purr' is not of type 'list'")
         self.assertEqual(e.exception.path, ['sounds'])
 
     def test_validation_field_string(self):
@@ -68,7 +68,7 @@ class JSONWireFormatTestCase(TestCase):
         with self.assertRaises(ValidationError) as e:
             wire_format.decode({'string': None})
 
-        self.assertEqual(e.exception.message, "None is not of type 'str'")
+        self.assertEqual(e.exception.description, "None is not of type 'str'")
         self.assertEqual(e.exception.path, ['string'])
 
     def test_validation_path(self):
@@ -77,20 +77,20 @@ class JSONWireFormatTestCase(TestCase):
         with self.assertRaises(ValidationError) as e:
             wire_format.decode({'string': 42})
 
-        self.assertEqual(e.exception.message, "42 is not of type 'str'")
+        self.assertEqual(e.exception.description, "42 is not of type 'str'")
         self.assertEqual(e.exception.path, ['string'])
 
         # FIXME With custom encoding/decoding for values this won't happen.
         with self.assertRaises(ValidationError) as e:
             wire_format.decode({'string_value': {'value': None}})
 
-        self.assertEqual(e.exception.message, "{'value': None} is not of type 'str'")
+        self.assertEqual(e.exception.description, "{'value': None} is not of type 'str'")
         self.assertEqual(e.exception.path, ['string_value'])
 
         with self.assertRaises(ValidationError) as e:
             wire_format.decode({'parent': {'string_value': 42}})
 
-        self.assertEqual(e.exception.message, "42 is not of type 'str'")
+        self.assertEqual(e.exception.description, "42 is not of type 'str'")
         self.assertEqual(e.exception.path, ['parent', 'string_value'])
 
     def test_unpack_invalid_json(self):
@@ -102,7 +102,7 @@ class JSONWireFormatTestCase(TestCase):
         with self.assertRaises(ValidationError) as e:
             wire_format.unpack(b'')
 
-        self.assertEqual(e.exception.message, "Invalid JSON: Expected object or value")
+        self.assertEqual(e.exception.description, "Invalid JSON: Expected object or value")
         self.assertEqual(e.exception.path, [])
 
         with self.assertRaises(ValidationError) as e:
