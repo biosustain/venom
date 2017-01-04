@@ -110,21 +110,24 @@ class Method(object):
         return locations
 
 
+# TODO change return value to typing.Coroutine in Python 3.6
+ServiceMethodInvokable = Callable[['venom.rpc.service.Service', Message], Message]
+
+
 class ServiceMethod(Method):
     def __init__(self,
                  fn: Callable[..., Any],
                  request: Type[Message] = None,
                  response: Type[Message] = None,
                  name: str = None,
-                 # TODO change to typing.Coroutine in Python 3.6
-                 invokable_fn: Callable[['venom.rpc.service.Service', Message], Message] = None,
+                 invokable: ServiceMethodInvokable = None,
                  **kwargs) -> None:
         super(ServiceMethod, self).__init__(request, response, name=name, **kwargs)
         self._fn = fn
-        if invokable_fn:
-            self._invokable_fn = invokable_fn
+        if invokable:
+            self._invokable = invokable
         else:
-            self._invokable_fn = fn
+            self._invokable = fn
 
     # NOTE: typing does not understand descriptors yet. There will be (inaccurate) warnings because the IDE
     #       cannot resolve this.
@@ -157,17 +160,17 @@ class ServiceMethod(Method):
 
         self._register_stub(service.__meta__.get('stub', None))
 
-        message_fn = magic_normalize(self._fn,
-                                     request=self.request,
-                                     response=self.response,
-                                     additional_args=args,
-                                     converters=tuple(converters) + tuple(service.__meta__.converters))
+        magic_fn = magic_normalize(self._fn,
+                                   request=self.request,
+                                   response=self.response,
+                                   additional_args=args,
+                                   converters=tuple(converters) + tuple(service.__meta__.converters))
 
         return self.__class__(self._fn,
-                              request=message_fn.request,
-                              response=message_fn.response,
+                              request=magic_fn.request,
+                              response=magic_fn.response,
                               name=name,
-                              invokable_fn=message_fn.invokable,
+                              invokable=magic_fn.invokable,
                               http_rule=self._http_rule,
                               http_verb=self._http_verb,
                               http_status=self._http_status,
@@ -178,7 +181,7 @@ class ServiceMethod(Method):
                      request: Message,
                      loop: 'asyncio.BaseEventLoop' = None):
         try:
-            return await self._invokable_fn(instance, request, loop=loop)
+            return await self._invokable(instance, request, loop=loop)
         except NotImplementedError:
             raise NotImplemented_()
         return response
