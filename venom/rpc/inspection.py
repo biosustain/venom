@@ -1,10 +1,10 @@
 import asyncio
 from functools import wraps
 from inspect import signature, Parameter
-from typing import Callable, Any, Sequence, get_type_hints, Type, NamedTuple, Optional
+from typing import Callable, Any, Sequence, get_type_hints, Type, NamedTuple, Optional, List, Dict
 from typing import Tuple
 from typing import Union
-from venom.fields import RepeatField, MapField
+from venom.fields import RepeatField, MapField, Field
 
 from venom.converter import Converter
 
@@ -92,22 +92,40 @@ def magic_normalize(func: Callable[..., Any],
                         raise RuntimeError("Unexpected required argument in {}: "
                                            "'{}' is not a field of {}".format(func, name, request))
 
-                    field_type = request.__fields__[name].type
-                    if isinstance(request.__fields__[name], (RepeatField, MapField)):
-                        # TODO support Dict[str, ?] and List[?] for RepeatField and MapField respectively.
+                    field = request.__fields__[name]
+
+                    # TODO support other mappings and sequences
+                    # XXX support for list-within-a-list situations?
+                    if isinstance(field, RepeatField):
+                        field_type = List[field.items.type]
+                    elif isinstance(field, MapField):
+                        field_type = Dict[str, field.values.type]
+                    elif isinstance(field, Field):
+                        field_type = field.type
+                    else:
+                        # TODO support Dict[str, ?] for MapField
                         raise NotImplementedError
 
-                    if type_ not in (Any, request.__fields__[name].type):
+                    if type_ not in (Any, field_type):
                         raise RuntimeError("Bad argument in {}: "
                                            "'{}' should be {}, but got {}".format(func, name, field_type, type_))
+
                     message_params.add((name, None))
 
                 for name, (type_, default) in remaining_params.items():
                     if name in request.__fields__:
-                        field_type = request.__fields__[name].type
+                        field = request.__fields__[name]
 
-                        if isinstance(request.__fields__[name], (RepeatField, MapField)):
-                            # TODO support Dict[str, ?] and List[?] for RepeatField and MapField respectively.
+                        # TODO support other mappings and sequences
+                        # XXX support for list-within-a-list situations?
+                        if isinstance(field, RepeatField):
+                            field_type = List[field.items.type]
+                        elif isinstance(field, MapField):
+                            field_type = Dict[str, field.values.type]
+                        elif isinstance(field, Field):
+                            field_type = field.type
+                        else:
+                            # TODO support Dict[str, ?] for MapField
                             raise NotImplementedError
 
                         if type_ not in (Any, field_type):

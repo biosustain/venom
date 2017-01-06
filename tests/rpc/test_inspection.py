@@ -5,7 +5,7 @@ from unittest import SkipTest
 from venom import Empty, Message
 from venom.common import Int64ValueConverter, Int32ValueConverter, IntegerValueConverter, StringValueConverter
 from venom.common import IntegerValue, StringValue
-from venom.fields import Int64, String, Repeat
+from venom.fields import Int64, String, Repeat, Integer, Map
 from venom.rpc.inspection import magic_normalize
 from venom.rpc.resolver import Resolver
 from venom.rpc.test_utils import AioTestCase
@@ -129,21 +129,31 @@ class InspectionTestCase(AioTestCase):
 
             inspect = magic_normalize(func, request=IntegerValue)
 
-    @SkipTest
     def test_magic_request_message_unpack_map_param(self):
         class Pairs(Message):
-            pairs = Repeat(String())
+            pairs = Map(String())
 
         def func(self, pairs: Dict[str, str]) -> Empty:
             pass
 
-    @SkipTest
+        inspect = magic_normalize(func, request=Pairs)
+
     def test_magic_request_message_unpack_repeat_param(self):
-        class Items(Message):
+        class StringList(Message):
             values = Repeat(String())
+
+        class IntegerList(Message):
+            values = Repeat(Integer())
 
         def func(self, values: List[str]) -> Empty:
             pass
+
+        inspect = magic_normalize(func, request=StringList)
+        self.assertEqual(inspect.response, Empty)
+        self.assertEqual(inspect.request, StringList)
+
+        with self.assertRaises(RuntimeError):
+            inspect = magic_normalize(func, request=IntegerList)
 
     @SkipTest
     def test_magic_request_message_autogenerate(self):
