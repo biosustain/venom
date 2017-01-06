@@ -24,4 +24,5 @@ class ServiceTestCase(TestCase):
             def boop(self) -> None:
                 pass
 
+        self.assertEqual(set(SnakeService.__manager__.methods.keys()), {"pet", "boop"})
         self.assertEqual(set(SnakeService.__methods__.keys()), {"pet", "boop"})

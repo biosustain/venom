@@ -1,19 +1,15 @@
-import inspect
-from typing import Dict, no_type_check, Any, Tuple
-from typing import Optional
-from typing import Set
-from typing import Type
+from typing import Dict, Any, MutableMapping
 
 from venom.common import IntegerValueConverter, BooleanValueConverter, DateTimeConverter, DateConverter
 from venom.common import StringValueConverter, NumberValueConverter
 from venom.rpc.method import Method
-from venom.message import Message
 from venom.util import meta, MetaDict
 
 
 class ServiceManager(object):
-    def __init__(self, service: Type['Service'], meta: MetaDict, meta_changes: MetaDict):
-        self.service = service
+    def __init__(self, meta: MetaDict, meta_changes: MetaDict):
+        self.meta = meta
+        self.methods = {}
 
     @staticmethod
     def generate_service_name(cls_name: str) -> str:
@@ -24,43 +20,44 @@ class ServiceManager(object):
         return name
 
     @classmethod
-    def prepare_meta(cls, meta: MetaDict, meta_changes: MetaDict) -> MetaDict:
+    def prepare_meta(cls, name: str, meta: MetaDict, meta_changes: MetaDict) -> MetaDict:
+        if not meta_changes.get('name'):
+            meta.name = cls.generate_service_name(name)
+
         if not meta_changes.get('http_rule', None):
             meta.http_rule = '/' + meta.name.lower().replace('_', '-')
         return meta
 
-    def register_method(self, method: Method, name: str) -> Method:
-        return method.register(self.service, method.name or name)
+    def prepare_members(self, members: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
+        for name, member in members.items():
+            if isinstance(member, Method):
+                members[name] = method = self.prepare_method(member, name)
+                self.methods[method.name] = method
+        return members
+
+    def prepare_method(self, method: Method, name: str) -> Method:
+        return method.prepare(self, name)
 
 
 class ServiceMeta(type):
     def __new__(metacls, name, bases, members):
-        cls = super(ServiceMeta, metacls).__new__(metacls, name, bases, members)
-        cls.__methods__ = methods = {}  # TODO change to tuple, but still prevent multiple methods with same name.
-        cls.__messages__ = messages = set()
-
         meta_, meta_changes = meta(bases, members)
+        meta_ = meta_.manager.prepare_meta(name, meta_, meta_changes)
+        manager = meta_.manager(meta_, meta_changes)
 
-        if not meta_changes.get('name', None):
-            meta_.name = meta_changes.name = meta_.manager.generate_service_name(name)
+        for base in bases:
+            if isinstance(base, ServiceMeta):
+                manager.methods.update(base.__methods__)
 
-        cls.__meta__ = meta_.manager.prepare_meta(meta_, meta_changes)
-        cls.__manager__ = manager = cls.__meta__.manager(cls, cls.__meta__, meta_changes)
+        stub = meta_changes.get('stub')
+        if isinstance(stub, type) and issubclass(stub, Service):
+            for name, method in stub.__methods__.items():
+                manager.methods[method.name] = method
 
-        for n, m in inspect.getmembers(cls):
-            if n.startswith('__'):
-                continue
-            if isinstance(m, Method):
-                m = methods[m.name or n] = manager.register_method(m, n)
-                setattr(cls, n, m)  # TODO more elegant solution (first update members and then make cls)
-            elif isinstance(m, type) and issubclass(m, Message):
-                messages.add(m)
-
-        if meta_changes.get('stub', None):
-            for n, m in meta_changes['stub'].__methods__.items():
-                if n not in cls.__methods__:
-                    cls.__methods__[n] = manager.register_method(m, n)
-
+        cls = super(ServiceMeta, metacls).__new__(metacls, name, bases, manager.prepare_members(members))
+        cls.__meta__ = manager.meta
+        cls.__methods__ = manager.methods
+        cls.__manager__ = manager
         return cls
 
 
@@ -74,7 +71,6 @@ class Service(object, metaclass=ServiceMeta):
     __meta__ = None  # type: 'venom.util.AttributeDict'
     __manager__ = None  # type: ServiceManager
     __methods__ = None  # type: Dict[str, Method]
-    __messages__ = None  # type: Set[Type[Message]]
 
     def __init__(self, venom: 'venom.Venom' = None, context: 'venom.RequestContext' = None) -> None:
         self.venom = venom

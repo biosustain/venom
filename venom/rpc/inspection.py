@@ -135,7 +135,7 @@ def magic_normalize(func: Callable[..., Any],
     response_converter = None
 
     if response is None:
-        if return_type in (Any, None):
+        if return_type in (Any, None, type(None)):  # None for Python 3.5 compatibility
             # TODO warn if Any: missing return type annotation (will discard return value)
             response = Empty
         elif issubclass(return_type, Message):
@@ -153,7 +153,7 @@ def magic_normalize(func: Callable[..., Any],
     elif return_type == Any:
         # NOTE missing return type annotation (assuming 'response' here)
         pass
-    elif return_type is None:
+    elif return_type in (None, type(None)):  # None for Python 3.5 compatibility
         response = Empty
     elif response != return_type:
         for converter in converters:

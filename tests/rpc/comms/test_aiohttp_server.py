@@ -7,6 +7,7 @@ from aiohttp.test_utils import AioHTTPTestCase, unittest_run_loop
 from venom import Message
 from venom.fields import Int64, String, Int32
 from venom.rpc import Service, http
+from venom.rpc import rpc
 from venom.rpc.comms.aiohttp import create_app
 from venom.rpc.test_utils import mock_venom
 
