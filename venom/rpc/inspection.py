@@ -103,7 +103,6 @@ def magic_normalize(func: Callable[..., Any],
                     elif isinstance(field, Field):
                         field_type = field.type
                     else:
-                        # TODO support Dict[str, ?] for MapField
                         raise NotImplementedError
 
                     if type_ not in (Any, field_type):
@@ -125,7 +124,6 @@ def magic_normalize(func: Callable[..., Any],
                         elif isinstance(field, Field):
                             field_type = field.type
                         else:
-                            # TODO support Dict[str, ?] for MapField
                             raise NotImplementedError
 
                         if type_ not in (Any, field_type):
