@@ -139,7 +139,7 @@ def magic_normalize(func: Callable[..., Any],
 
             else:  # auto-generate message from params (uses converters where necessary)
                 unpack_request = True
-                raise NotImplementedError  # TODO
+                raise NotImplementedError("No message auto-generation support yet in {}".format(func))  # TODO
     else:  # func(self)
         if request is None:
             request = Empty
