@@ -1,6 +1,7 @@
 import asyncio
 import enum
 import re
+import warnings
 from functools import partial
 from types import MethodType
 from typing import Callable, Any, Type, Union, Set, Dict, Sequence, Tuple
@@ -76,12 +77,14 @@ class Method(object):
 
     def http_rule(self, service: 'venom.Service' = None) -> str:
         if self._http_rule is None:
-            http_rule = '/' + self.name.lower().replace('_', '-')
+            http_rule = './' + self.name.lower().replace('_', '-')
+        elif self._http_rule == '':
+            http_rule = '.'
         else:
             http_rule = self._http_rule
 
-        if service is not None:
-            return service.__meta__.http_rule + http_rule
+        if service is not None and http_rule.startswith('.'):
+            return service.__meta__.http_rule + http_rule[1:]
         return http_rule
 
     def http_path_params(self) -> Set[str]:
@@ -214,6 +217,9 @@ class HTTPVerb(enum.Enum):
 
 class HTTPMethodDecorator(MethodDecorator):
     def __call__(self, verb: HTTPVerb, *args, **kwargs) -> Union[Method, Callable[[Callable], Method]]:
+        if isinstance(verb, str):
+            verb = HTTPVerb[verb]
+
         if len(args) == 1 and len(kwargs) == 0 and callable(args[0]):
             return self.method(args[0], http_verb=verb, **self.method_options)
         else:
@@ -228,18 +234,23 @@ class HTTPMethodDecorator(MethodDecorator):
             return _http(*args, **kwargs)
 
     def GET(self, *args, **kwargs) -> Union[Method, Callable[[Callable], Method]]:
+        warnings.warn("http.<HTTPVerb> is depreacated. Use http(<HTTPVerb>)", DeprecationWarning)
         return self(HTTPVerb.GET, *args, **kwargs)
 
     def PUT(self, *args, **kwargs) -> Union[Method, Callable[[Callable], Method]]:
+        warnings.warn("http.<HTTPVerb> is depreacated. Use http(<HTTPVerb>)", DeprecationWarning)
         return self(HTTPVerb.PUT, *args, **kwargs)
 
     def POST(self, *args, **kwargs) -> Union[Method, Callable[[Callable], Method]]:
+        warnings.warn("http.<HTTPVerb> is depreacated. Use http(<HTTPVerb>)", DeprecationWarning)
         return self(HTTPVerb.POST, *args, **kwargs)
 
     def PATCH(self, *args, **kwargs) -> Union[Method, Callable[[Callable], Method]]:
+        warnings.warn("http.<HTTPVerb> is depreacated. Use http(<HTTPVerb>)", DeprecationWarning)
         return self(HTTPVerb.PATCH, *args, **kwargs)
 
     def DELETE(self, *args, **kwargs) -> Union[Method, Callable[[Callable], Method]]:
+        warnings.warn("http.<HTTPVerb> is depreacated. Use http(<HTTPVerb>)", DeprecationWarning)
         return self(HTTPVerb.DELETE, *args, **kwargs)
 
 

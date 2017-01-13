@@ -1,4 +1,5 @@
 from types import MethodType
+from typing import Union
 
 from venom.exceptions import NotImplemented_
 from venom.rpc.method import Method, HTTPVerb
@@ -49,7 +50,9 @@ class RPC(Method):
             raise NotImplemented_()
 
     @staticmethod
-    def http(verb: HTTPVerb, rule=None, *args, **kwargs):
+    def http(verb: Union[str, HTTPVerb], rule=None, *args, **kwargs) -> 'RPC':
+        if isinstance(verb, str):
+            verb = HTTPVerb[verb]
         return RPC(*args, http_verb=verb, http_rule=rule, **kwargs)
         # TODO consider changing RPC.http for better code suggestion:
         # class http:

@@ -57,9 +57,9 @@ class MethodTestCase(AioTestCase):
             pass
         self.assertEqual(RPC(Empty, Empty, name='bar').http_rule(FooService), '/foo/bar')
         self.assertEqual(RPC(Empty, Empty, name='foo').http_verb, HTTPVerb.POST)
-        self.assertEqual(RPC.http.GET('/bar', Empty, Empty).http_rule(FooService), '/foo/bar')
-        self.assertEqual(RPC.http.POST('/foo', Empty, Empty).http_verb, HTTPVerb.POST)
-        self.assertEqual(RPC.http.DELETE('/foo', Empty, Empty).http_verb, HTTPVerb.DELETE)
+        self.assertEqual(RPC.http.GET('./bar', Empty, Empty).http_rule(FooService), '/foo/bar')
+        self.assertEqual(RPC.http.POST('./foo', Empty, Empty).http_verb, HTTPVerb.POST)
+        self.assertEqual(RPC.http.DELETE('./foo', Empty, Empty).http_verb, HTTPVerb.DELETE)
 
     def test_method_http_rule_params(self):
         class Snake(Message):
@@ -67,6 +67,6 @@ class MethodTestCase(AioTestCase):
             name = String()
             size = Int32()
 
-        self.assertEqual(RPC.http.GET('/', Empty, Empty).http_path_params(), set())
-        self.assertEqual(RPC.http.GET('/{id}', Snake, Snake).http_path_params(), {'id'})
-        self.assertEqual(RPC.http.GET('/{name}/{id}', Snake, Snake).http_path_params(), {'id', 'name'})
+        self.assertEqual(RPC.http.GET('./', Empty, Empty).http_path_params(), set())
+        self.assertEqual(RPC.http.GET('./{id}', Snake, Snake).http_path_params(), {'id'})
+        self.assertEqual(RPC.http.GET('./{name}/{id}', Snake, Snake).http_path_params(), {'id', 'name'})

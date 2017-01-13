@@ -7,7 +7,7 @@ from hello import HelloRequest, HelloResponse
 
 
 class HelloService(Service):
-    @http.POST('/greet/{name}')
+    @http.POST('./greet/{name}')
     def say_hello(self, request: HelloRequest) -> HelloResponse:
         text = "Hello, {}!".format(request.name)
 

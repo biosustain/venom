@@ -20,7 +20,7 @@ class AioHTTPSimpleServerTestCase(AioHTTPTestCase):
             size = Int32()
 
         class SnakeService(Service):
-            @http.POST('', request=Snake)
+            @http.POST('.', request=Snake)
             def create(self, name: str, size: int = 2) -> Snake:
                 # TODO document or fix inconsistent behavior of passing request message vs deconstructing request
                 #      with required args with regard to setting defaults.
@@ -30,11 +30,11 @@ class AioHTTPSimpleServerTestCase(AioHTTPTestCase):
             def all_hiss(self) -> None:
                 pass
 
-            @http.POST('/{id:\d+}/hiss', request=Snake)
+            @http.POST('./{id:\d+}/hiss', request=Snake)
             def hiss(self, id: int) -> None:
                 pass
 
-            @http.GET('/{id:\d+}', request=Snake)
+            @http.GET('./{id:\d+}', request=Snake)
             def read(self, id: int) -> Snake:
                 return Snake(id, 'Snek #{}'.format(id))
 
@@ -42,11 +42,11 @@ class AioHTTPSimpleServerTestCase(AioHTTPTestCase):
             # @http.GET('/')
             # def snakes(self) -> :
 
-            @http.GET('/status/500')
+            @http.GET('./status/500')
             def http500(self) -> None:
                 raise ValueError('No!')
 
-            @http.GET('/status/501')
+            @http.GET('./status/501')
             def http501(self) -> None:
                 raise NotImplementedError
 

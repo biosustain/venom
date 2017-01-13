@@ -14,4 +14,4 @@ class HelloResponse(Message):
 
 
 class HelloStub(Stub):
-    say_hello = RPC.http.POST('/greet/{name}', HelloRequest, HelloResponse)
+    say_hello = RPC.http.POST('./greet/{name}', HelloRequest, HelloResponse)
