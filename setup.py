@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='venom',
-    version='1.0.0a3',
+    version='1.0.0a4',
     packages=find_packages(exclude=['*tests*']),
     url='https://github.com/biosustain/venom',
     license='MIT',
@@ -15,7 +15,7 @@ setup(
     long_description=codecs.open('README.rst', encoding='utf-8').read(),
     test_suite='nose.collector',
     tests_require=[
-        'aiohttp',
+        'aiohttp>=1.2.0',
         'ujson',
         'nose'
     ],
@@ -35,7 +35,7 @@ setup(
     zip_safe=False,
     extras_require={
         'docs': ['sphinx'],
-        'aiohttp': ['aiohttp', 'ujson'],
+        'aiohttp': ['aiohttp>=1.2.0', 'ujson'],
         'grpc': ['grpcio'],
         'zmq': ['pyzmq'],
     }
