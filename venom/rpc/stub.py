@@ -16,7 +16,7 @@ class Stub(Service):
 
     async def invoke_(self, rpc, request, loop: 'asyncio.BaseEventLoop' = None):
         if self._client:
-            return await self._client.invoke(self, rpc, request, loop=loop)
+            return await self._client.invoke(self, rpc, request, loop=loop, context=self.context)
         raise NotImplementedError
 
 
