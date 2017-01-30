@@ -39,7 +39,7 @@ def _route_handler(venom: 'venom.rpc.Venom',
                 request = rpc.request()
                 for name, decode in http_request_query:
                     try:
-                        request[name] = decode(http_request.match_info[name])
+                        request[name] = decode(http_request.url.query[name])
                     except KeyError:
                         pass
 
