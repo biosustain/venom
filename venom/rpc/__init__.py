@@ -3,7 +3,7 @@ from weakref import WeakKeyDictionary
 
 from venom.rpc.context import RequestContext
 from venom.rpc.stub import Stub, RPC
-from venom.serialization import WireFormat
+from venom.protocol import Protocol
 from .method import rpc, http
 from .proxy import ServiceProxy
 from .service import Service
@@ -14,7 +14,7 @@ class UnknownService(RuntimeError):
 
 
 class Venom(object):
-    def __init__(self, *, wire_format: WireFormat = None):
+    def __init__(self, *, protocol: Protocol = None):
         self._instances = WeakKeyDictionary()
         self._services = {}
         self._clients = {}

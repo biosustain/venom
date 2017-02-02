@@ -29,7 +29,7 @@ class MessageMeta(ABCMeta):
         cls = super(MessageMeta, metacls).__new__(metacls, name, bases, members)
         cls.__fields__ = OrderedDict(getattr(cls, '__fields__') or ())
         cls.__meta__, meta_changes = meta(bases, members)
-        cls.__meta__.wire_formats = {}
+        cls.__meta__.protocols = {}
 
         if not meta_changes.get('name', None):
             cls.__meta__.name = name
@@ -53,7 +53,7 @@ class Message(MutableMapping, metaclass=MessageMeta):
     class Meta:
         name = None
         one_of_groups = ()
-        wire_formats = None
+        protocols = None
 
     def __init__(self, *args, **kwargs):
         if args:

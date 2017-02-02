@@ -10,28 +10,26 @@ from venom.exceptions import ValidationError
 from venom.fields import Field, ConverterField, RepeatField, FieldDescriptor
 
 
-class WireFormat(metaclass=ABCMeta):
+class Protocol(metaclass=ABCMeta):
     mime = None  # type: str
+    name = None  # type: str
 
     def __new__(cls, fmt: Type[Message]):
         try:
-            return fmt.__meta__.wire_formats[cls]
+            return fmt.__meta__.protocols[cls.name]
         except KeyError:
-            instance = super(WireFormat, cls).__new__(cls)
+            instance = super(Protocol, cls).__new__(cls)
             instance.__init__(fmt)
             return instance
 
     def __init__(self, fmt: Type[Message]):
-        self._cache_wire_format(fmt)
+        fmt.__meta__.protocols[self.name] = self
         self._format = fmt
 
-    def _cache_wire_format(self, fmt):
-        fmt.__meta__.wire_formats[self.__class__] = self
-
     @classmethod
-    def _get_wire_format(cls, fmt: Type[Message]):
+    def _get_protocol(cls, fmt: Type[Message]):
         try:
-            return fmt.__meta__.wire_formats[cls]
+            return fmt.__meta__.protocols[cls.name]
         except KeyError:
             return cls(fmt)
 
@@ -54,8 +52,9 @@ JSONPrimitive = Union[str, int, float, bool]
 JSONValue = Union[JSONPrimitive, Dict[str, JSONPrimitive], List[JSONPrimitive]]
 
 
-class JSON(WireFormat):
+class JSON(Protocol):
     mime = 'application/json'
+    name = 'json'
 
     def __init__(self, fmt: Type[Message]):
         super().__init__(fmt)
@@ -80,8 +79,8 @@ class JSON(WireFormat):
     def _field_encoder(self, field: FieldDescriptor) -> Callable[[Any], JSONValue]:
         if isinstance(field, ConverterField):
             field_converter = field.converter
-            field_wire_format = self._get_wire_format(field_converter.wire)
-            return lambda value: field_wire_format.encode(field_converter.format(value))
+            field_protocol = self._get_protocol(field_converter.wire)
+            return lambda value: field_protocol.encode(field_converter.format(value))
 
         if isinstance(field, RepeatField):
             field_item_encoder = self._field_encoder(field.items)
@@ -91,8 +90,8 @@ class JSON(WireFormat):
             raise NotImplementedError()
 
         if issubclass(field.type, Message):
-            field_wire_format = self._get_wire_format(field.type)
-            return lambda msg: field_wire_format.encode(msg)
+            field_protocol = self._get_protocol(field.type)
+            return lambda msg: field_protocol.encode(msg)
 
         if field.type is bytes:
             return lambda b: b64encode(b)
@@ -103,8 +102,8 @@ class JSON(WireFormat):
     def _field_decoder(self, field: FieldDescriptor) -> Callable[[JSONValue], Any]:
         if isinstance(field, ConverterField):
             field_converter = field.converter
-            field_wire_format = self._get_wire_format(field_converter.wire)
-            return lambda msg: field_converter.convert(field_wire_format.decode(msg))
+            field_protocol = self._get_protocol(field_converter.wire)
+            return lambda msg: field_converter.convert(field_protocol.decode(msg))
 
         if isinstance(field, RepeatField):
             field_item_decoder = self._field_decoder(field.items)
@@ -114,8 +113,8 @@ class JSON(WireFormat):
             raise NotImplementedError()
 
         if issubclass(field.type, Message):
-            field_wire_format = self._get_wire_format(field.type)
-            return lambda msg: field_wire_format.decode(msg)
+            field_protocol = self._get_protocol(field.type)
+            return lambda msg: field_protocol.decode(msg)
 
         # an integer (int) in JSON is also a number (float), so we convert here if necessary:
         if field.type is float:
@@ -170,8 +169,8 @@ def _cast(type_: type, value: Any):
         raise ValidationError("{} is not formatted as a '{}'".format(repr(value), type_.__name__))
 
 
-def string_decoder(field: Field, wire_format: Type[WireFormat]):
-    # TODO support converter fields and message fields (unpack message using wire_format)
+def string_decoder(field: Field, protocol: Type[Protocol]):
+    # TODO support converter fields and message fields (unpack message using protocol)
     if field.type in (int, str):
         return lambda value: _cast(field.type, value)
     # TODO support boolean etc. (with wire formats that allow it)

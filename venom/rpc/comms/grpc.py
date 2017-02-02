@@ -5,7 +5,7 @@ from threading import Thread
 from typing import Type
 
 from venom.rpc.comms import BaseClient
-from venom.serialization import WireFormat, JSON
+from venom.protocol import Protocol, JSON
 
 try:
     from grpc.beta import implementations
@@ -18,7 +18,7 @@ except ImportError:
 
 def create_server(venom: 'venom.rpc.Venom',
                   *,
-                  wire_format: Type[WireFormat] = None,
+                  protocol_factory: Type[Protocol] = JSON,
                   pool=None,
                   pool_size=None,
                   default_timeout=None,
@@ -26,9 +26,6 @@ def create_server(venom: 'venom.rpc.Venom',
                   loop=None):
     if loop is None:
         loop = asyncio.new_event_loop()
-
-    if wire_format is None:
-        wire_format = JSON
 
     request_deserializers = {}
     response_serializers = {}
@@ -42,8 +39,8 @@ def create_server(venom: 'venom.rpc.Venom',
 
     for service, rpc in venom.iter_methods():
         grpc_name = (service.__meta__.name, rpc.name)
-        request_deserializers[grpc_name] = wire_format(rpc.request).unpack
-        response_serializers[grpc_name] = wire_format(rpc.response).pack
+        request_deserializers[grpc_name] = protocol_factory(rpc.request).unpack
+        response_serializers[grpc_name] = protocol_factory(rpc.response).pack
         method_implementations[grpc_name] = utilities.unary_unary_inline(partial(grpc_unary_unary,
                                                                                  rpc,
                                                                                  venom,
@@ -68,8 +65,8 @@ def create_server(venom: 'venom.rpc.Venom',
 
 
 class Client(BaseClient):
-    def __init__(self, stub: Type['venom.rpc.Service'], host=None, port=50051, *, wire_format: WireFormat = None):
-        super().__init__(stub, wire_format=wire_format)
+    def __init__(self, stub: Type['venom.rpc.Service'], host=None, port=50051, *, protocol_factory: Type[Protocol] = None):
+        super().__init__(stub, protocol_factory=protocol_factory)
         channel = implementations.insecure_channel(host, port)
         self._group = stub.__meta__.name
         self._grpc_stub = self._create_grpc_stub(stub, channel)
@@ -79,8 +76,8 @@ class Client(BaseClient):
         response_deserializers = {}
 
         for rpc in stub.__methods__.values():
-            request_serializers[(self._group, rpc.name)] = self._wire_format(rpc.request).pack
-            response_deserializers[(self._group, rpc.name)] = self._wire_format(rpc.response).unpack
+            request_serializers[(self._group, rpc.name)] = self._protocol_factory(rpc.request).pack
+            response_deserializers[(self._group, rpc.name)] = self._protocol_factory(rpc.response).unpack
 
         stub_options = implementations.stub_options(host=host,
                                                     metadata_transformer=metadata_transformer,

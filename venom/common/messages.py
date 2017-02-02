@@ -66,12 +66,10 @@ NumberValue = Float64Value
 #         # TODO
 #     )
 
-from venom.serialization import JSON as _JSON
+from venom.protocol import JSON as _JSON
 
 
 class _JSONValue(_JSON):
-    mime = 'application/json'
-
     def encode(self, message: Message):
         return message.value
 
@@ -80,10 +78,10 @@ class _JSONValue(_JSON):
         return self._format(value)
 
 
-StringValue.__meta__.wire_formats[_JSON] = _JSONValue(StringValue)
-IntegerValue.__meta__.wire_formats[_JSON] = _JSONValue(IntegerValue)
-NumberValue.__meta__.wire_formats[_JSON] = _JSONValue(NumberValue)
-BoolValue.__meta__.wire_formats[_JSON] = _JSONValue(BoolValue)
+StringValue.__meta__.protocols['json'] = _JSONValue(StringValue)
+IntegerValue.__meta__.protocols['json'] = _JSONValue(IntegerValue)
+NumberValue.__meta__.protocols['json'] = _JSONValue(NumberValue)
+BoolValue.__meta__.protocols['json'] = _JSONValue(BoolValue)
 
 
 class FieldMask(Message):
@@ -111,7 +109,7 @@ class _JSONFieldMask(_JSON):
         return self._format(paths.split(','))
 
 
-FieldMask.__meta__.wire_formats[_JSON] = _JSONFieldMask(FieldMask)
+FieldMask.__meta__.protocols['json'] = _JSONFieldMask(FieldMask)
 
 
 class Timestamp(Message):

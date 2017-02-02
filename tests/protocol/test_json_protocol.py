@@ -5,27 +5,27 @@ from venom import Message
 from venom.common import StringValue, IntegerValue, BoolValue, NumberValue
 from venom.exceptions import ValidationError
 from venom.fields import String, Number, Field, Repeat
-from venom.serialization import JSON
+from venom.protocol import JSON
 
 
 class Foo(Message):
     string = String()
-    parent = Field('tests.serialization.test_json_wire_format.Foo')
+    parent = Field('tests.protocol.test_json_protocol.Foo')
     string_value = Field(StringValue)
 
 
-class JSONWireFormatTestCase(TestCase):
+class JSONProtocolTestCase(TestCase):
     def test_encode_message(self):
         class Pet(Message):
             sound = String()
 
-        wire_format = JSON(Pet)
-        self.assertEqual(wire_format.encode(Pet('hiss!')), {'sound': 'hiss!'})
-        self.assertEqual(wire_format.decode({'sound': 'meow'}), Pet('meow'))
-        self.assertEqual(wire_format.decode({}), Pet())
+        protocol = JSON(Pet)
+        self.assertEqual(protocol.encode(Pet('hiss!')), {'sound': 'hiss!'})
+        self.assertEqual(protocol.decode({'sound': 'meow'}), Pet('meow'))
+        self.assertEqual(protocol.decode({}), Pet())
 
         with self.assertRaises(ValidationError) as e:
-            wire_format.decode('bad')
+            protocol.decode('bad')
 
         self.assertEqual(e.exception.description, "'bad' is not of type 'dict'")
         self.assertEqual(e.exception.path, [])
@@ -37,25 +37,25 @@ class JSONWireFormatTestCase(TestCase):
         class Pet(Message):
             size = Number(attribute='weight')
 
-        wire_format = JSON(Pet)
+        protocol = JSON(Pet)
 
         pet = Pet()
         pet.size = 2.5
-        self.assertEqual(wire_format.encode(pet), {'weight': 2.5})
-        self.assertEqual(wire_format.decode({'weight': 2.5}), Pet(2.5))
+        self.assertEqual(protocol.encode(pet), {'weight': 2.5})
+        self.assertEqual(protocol.decode({'weight': 2.5}), Pet(2.5))
 
     def test_encode_repeat_field(self):
         class Pet(Message):
             sounds = Repeat(String())
 
-        wire_format = JSON(Pet)
-        self.assertEqual(wire_format.encode(Pet(['hiss!', 'slither'])), {'sounds': ['hiss!', 'slither']})
-        self.assertEqual(wire_format.decode({'sounds': ['meow', 'purr']}), Pet(['meow', 'purr']))
-        self.assertEqual(wire_format.decode({}), Pet())
-        self.assertEqual(wire_format.encode(Pet()), {})
+        protocol = JSON(Pet)
+        self.assertEqual(protocol.encode(Pet(['hiss!', 'slither'])), {'sounds': ['hiss!', 'slither']})
+        self.assertEqual(protocol.decode({'sounds': ['meow', 'purr']}), Pet(['meow', 'purr']))
+        self.assertEqual(protocol.decode({}), Pet())
+        self.assertEqual(protocol.encode(Pet()), {})
 
         with self.assertRaises(ValidationError) as e:
-            wire_format.decode({'sounds': 'meow, purr'})
+            protocol.decode({'sounds': 'meow, purr'})
 
         self.assertEqual(e.exception.description, "'meow, purr' is not of type 'list'")
         self.assertEqual(e.exception.path, ['sounds'])
@@ -64,31 +64,31 @@ class JSONWireFormatTestCase(TestCase):
         class Foo(Message):
             string = String()
 
-        wire_format = JSON(Foo)
+        protocol = JSON(Foo)
         with self.assertRaises(ValidationError) as e:
-            wire_format.decode({'string': None})
+            protocol.decode({'string': None})
 
         self.assertEqual(e.exception.description, "None is not of type 'str'")
         self.assertEqual(e.exception.path, ['string'])
 
     def test_validation_path(self):
-        wire_format = JSON(Foo)
+        protocol = JSON(Foo)
 
         with self.assertRaises(ValidationError) as e:
-            wire_format.decode({'string': 42})
+            protocol.decode({'string': 42})
 
         self.assertEqual(e.exception.description, "42 is not of type 'str'")
         self.assertEqual(e.exception.path, ['string'])
 
         # FIXME With custom encoding/decoding for values this won't happen.
         with self.assertRaises(ValidationError) as e:
-            wire_format.decode({'string_value': {'value': None}})
+            protocol.decode({'string_value': {'value': None}})
 
         self.assertEqual(e.exception.description, "{'value': None} is not of type 'str'")
         self.assertEqual(e.exception.path, ['string_value'])
 
         with self.assertRaises(ValidationError) as e:
-            wire_format.decode({'parent': {'string_value': 42}})
+            protocol.decode({'parent': {'string_value': 42}})
 
         self.assertEqual(e.exception.description, "42 is not of type 'str'")
         self.assertEqual(e.exception.path, ['parent', 'string_value'])
@@ -97,61 +97,61 @@ class JSONWireFormatTestCase(TestCase):
         class Pet(Message):
             sound = String()
 
-        wire_format = JSON(Pet)
+        protocol = JSON(Pet)
 
         with self.assertRaises(ValidationError) as e:
-            wire_format.unpack(b'')
+            protocol.unpack(b'')
 
         self.assertEqual(e.exception.description, "Invalid JSON: Expected object or value")
         self.assertEqual(e.exception.path, [])
 
         with self.assertRaises(ValidationError) as e:
-            wire_format.unpack(b'fs"ad')
+            protocol.unpack(b'fs"ad')
 
     def test_pack(self):
         class Pet(Message):
             sound = String()
 
-        wire_format = JSON(Pet)
-        self.assertEqual(wire_format.pack(Pet()), b'{}')
-        self.assertEqual(wire_format.pack(Pet('hiss!')), b'{"sound":"hiss!"}')
+        protocol = JSON(Pet)
+        self.assertEqual(protocol.pack(Pet()), b'{}')
+        self.assertEqual(protocol.pack(Pet('hiss!')), b'{"sound":"hiss!"}')
 
     def test_string_value(self):
-        wire_format = JSON(StringValue)
+        protocol = JSON(StringValue)
 
-        self.assertEqual(wire_format.encode(StringValue('hiss!')), 'hiss!')
-        self.assertEqual(wire_format.decode('hiss!'), StringValue('hiss!'))
+        self.assertEqual(protocol.encode(StringValue('hiss!')), 'hiss!')
+        self.assertEqual(protocol.decode('hiss!'), StringValue('hiss!'))
 
-        self.assertEqual(wire_format.pack(StringValue()), b'""')
-        self.assertEqual(wire_format.pack(StringValue('hiss!')), b'"hiss!"')
+        self.assertEqual(protocol.pack(StringValue()), b'""')
+        self.assertEqual(protocol.pack(StringValue('hiss!')), b'"hiss!"')
 
         with self.assertRaises(ValidationError):
-            wire_format.decode(42)
+            protocol.decode(42)
 
     def test_integer_value(self):
-        wire_format = JSON(IntegerValue)
+        protocol = JSON(IntegerValue)
 
-        self.assertEqual(wire_format.encode(IntegerValue(2)), 2)
-        self.assertEqual(wire_format.decode(2), IntegerValue(2))
+        self.assertEqual(protocol.encode(IntegerValue(2)), 2)
+        self.assertEqual(protocol.decode(2), IntegerValue(2))
 
         with self.assertRaises(ValidationError):
-            wire_format.decode('hiss!')
+            protocol.decode('hiss!')
 
     def test_number_value(self):
-        wire_format = JSON(NumberValue)
+        protocol = JSON(NumberValue)
 
-        self.assertEqual(wire_format.encode(NumberValue(2.5)), 2.5)
-        self.assertEqual(wire_format.decode(2.5), NumberValue(2.5))
+        self.assertEqual(protocol.encode(NumberValue(2.5)), 2.5)
+        self.assertEqual(protocol.decode(2.5), NumberValue(2.5))
 
         with self.assertRaises(ValidationError):
-            wire_format.decode('hiss!')
+            protocol.decode('hiss!')
 
     def test_bool_value(self):
-        wire_format = JSON(BoolValue)
+        protocol = JSON(BoolValue)
 
-        self.assertEqual(wire_format.encode(BoolValue()), False)
-        self.assertEqual(wire_format.encode(BoolValue(True)), True)
-        self.assertEqual(wire_format.decode(False), BoolValue(False))
+        self.assertEqual(protocol.encode(BoolValue()), False)
+        self.assertEqual(protocol.encode(BoolValue(True)), True)
+        self.assertEqual(protocol.decode(False), BoolValue(False))
 
         with self.assertRaises(ValidationError):
-            wire_format.decode('hiss!')
+            protocol.decode('hiss!')

@@ -2,13 +2,15 @@ from unittest import TestCase
 
 from venom import Message
 from venom.fields import String
-from venom.serialization import WireFormat
+from venom.protocol import Protocol
 
 
-class WireFormatTestCase(TestCase):
+class ProtocolTestCase(TestCase):
 
     def test_cache(self):
-        class FooWireFormat(WireFormat):
+        class FooProtocol(Protocol):
+            name = 'foo'
+
             def pack(self, message: Message):
                 return b''
 
@@ -18,7 +20,7 @@ class WireFormatTestCase(TestCase):
         class Pet(Message):
             sound = String()
 
-        wire_format = FooWireFormat(Pet)
-        self.assertIs(Pet.__meta__.wire_formats[FooWireFormat], wire_format)
+        protocol = FooProtocol(Pet)
+        self.assertIs(Pet.__meta__.protocols['foo'], protocol)
 
 
