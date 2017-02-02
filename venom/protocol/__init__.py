@@ -34,11 +34,11 @@ class Protocol(metaclass=ABCMeta):
             return cls(fmt)
 
     @abstractmethod
-    def pack(self, message: Message) -> bytes:
+    def pack(self, message: Message, include: Iterable[str] = None) -> bytes:
         pass
 
     @abstractmethod
-    def unpack(self, buffer: bytes, skip: Iterable[str] = ()) -> Message:
+    def unpack(self, buffer: bytes, include: Iterable[str] = None) -> Message:
         pass
 
 
@@ -52,7 +52,18 @@ JSONPrimitive = Union[str, int, float, bool]
 JSONValue = Union[JSONPrimitive, Dict[str, JSONPrimitive], List[JSONPrimitive]]
 
 
-class JSON(Protocol):
+class DictProtocol(Protocol, metaclass=ABCMeta):
+
+    @abstractmethod
+    def encode(self, message: Message, include: Iterable[str] = None):
+        pass
+
+    @abstractmethod
+    def decode(self, instance: Any, include: Iterable[str] = None) -> Message:
+        pass
+
+
+class JSON(DictProtocol):
     mime = 'application/json'
     name = 'json'
 
@@ -77,11 +88,6 @@ class JSON(Protocol):
         return float(value)
 
     def _field_encoder(self, field: FieldDescriptor) -> Callable[[Any], JSONValue]:
-        if isinstance(field, ConverterField):
-            field_converter = field.converter
-            field_protocol = self._get_protocol(field_converter.wire)
-            return lambda value: field_protocol.encode(field_converter.format(value))
-
         if isinstance(field, RepeatField):
             field_item_encoder = self._field_encoder(field.items)
             return lambda lst: [field_item_encoder(item) for item in lst]
@@ -100,11 +106,6 @@ class JSON(Protocol):
         return lambda value: value
 
     def _field_decoder(self, field: FieldDescriptor) -> Callable[[JSONValue], Any]:
-        if isinstance(field, ConverterField):
-            field_converter = field.converter
-            field_protocol = self._get_protocol(field_converter.wire)
-            return lambda msg: field_converter.convert(field_protocol.decode(msg))
-
         if isinstance(field, RepeatField):
             field_item_decoder = self._field_decoder(field.items)
             return lambda lst: [field_item_decoder(item) for item in self._cast(list, lst)]
@@ -126,10 +127,12 @@ class JSON(Protocol):
 
         return partial(self._cast, field.type)
 
-    def encode(self, message: Message):
+    def encode(self, message: Message, include: Iterable[str] = None):
         obj = {}
-        for attr, value in message.items():
-            obj[attr] = self.field_encoders[attr](value)
+        for name, value in message.items():
+            if include is not None and name in include:
+                continue
+            obj[name] = self.field_encoders[name](value)
         return obj
 
     def decode(self, instance: Any, include: Iterable[str] = None) -> Message:
@@ -145,7 +148,8 @@ class JSON(Protocol):
                     raise e
         return message
 
-    def pack(self, message: Message) -> bytes:
+    # TODO include It
+    def pack(self, message: Message, include: Iterable[str] = None) -> bytes:
         if self._format is Empty:
             return b''
         return json.dumps(self.encode(message)).encode('utf-8')

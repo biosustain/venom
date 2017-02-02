@@ -70,6 +70,7 @@ class Message(MutableMapping, metaclass=MessageMeta):
             return self._values[key]
         except KeyError:
             if default is None and key in self.__fields__:
+                print(self.__fields__[key], self.__fields__[key].default())
                 return self.__fields__[key].default()
             return default
 

@@ -8,9 +8,9 @@ from venom.fields import ConverterField
 
 class Date(ConverterField):
     def __init__(self, **kwargs) -> None:
-        super().__init__(datetime.date, converter=DateConverter(), **kwargs)
+        super().__init__(DateConverter(), **kwargs)
 
 
 class DateTime(ConverterField):
     def __init__(self, **kwargs) -> None:
-        super().__init__(datetime.datetime, converter=DateTimeConverter(), **kwargs)
+        super().__init__(DateTimeConverter(), **kwargs)

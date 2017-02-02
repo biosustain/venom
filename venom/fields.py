@@ -62,17 +62,22 @@ class Field(Generic[T], FieldDescriptor):
         return self.type == other.type and self.options == other.options
 
     def __repr__(self):
-        return '{}({})'.format(self.__class__.__name__, self._type)
+        return '{}({})'.format(self.__class__.__name__,
+                               self._type.__class__.__name__ if not isinstance(self._type, str) else repr(self._type))
 
 
 class ConverterField(Field):
     def __init__(self,
-                 type_: Type[T],
                  converter: 'venom.converter.Converter' = None,
                  **kwargs) -> None:
-        super().__init__(self, converter.wire, **kwargs)
-        self.python = type_
+        super().__init__(converter.wire, **kwargs)
         self.converter = converter
+
+    def __set__(self, instance: 'venom.message.Message', value):
+        instance[self.name] = self.converter.format(value)
+
+    def __get__(self, instance: 'venom.message.Message', value):
+        return self.converter.convert(instance.get(self.name))
 
 
 class String(Field[str]):

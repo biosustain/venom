@@ -76,10 +76,10 @@ class DateTimeConverter(Converter):
     python = datetime.datetime
 
     def convert(self, value: Timestamp) -> datetime.datetime:
-        return datetime.datetime.fromtimestamp(value.seconds + value.nanos / 10 ** 9)
+        return datetime.datetime.utcfromtimestamp(value.seconds + value.nanos / 10 ** 9)
 
     def format(self, value: datetime.datetime) -> Timestamp:
-        unix = calendar.timegm(value.timetuple())
+        unix = calendar.timegm(value.utctimetuple())
         seconds = int(unix)
         nanos = int((unix - seconds) * 10 ** 9)
         return Timestamp(seconds, nanos)
