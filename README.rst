@@ -21,7 +21,7 @@ So far, Venom RPC supports unary requests & replies that are defined as methods 
 
 The currently available implementations are:
 
-- Unary HTTP/1 protocol implementation using *aiohttp* (asynchronous) or *`flask <https://github.com/biosustain/flask-venom>`_* (synchronous only)
+- Unary HTTP/1 protocol implementation using *aiohttp* (asynchronous) or *flask* (synchronous only; via `flask-venom <https://github.com/biosustain/flask-venom>`_)
 - Unary gRPC protocol implementation using *grpcio*
  
  
