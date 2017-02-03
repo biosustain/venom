@@ -27,7 +27,7 @@ class JSONProtocolTestCase(TestCase):
         with self.assertRaises(ValidationError) as e:
             protocol.decode('bad')
 
-        self.assertEqual(e.exception.description, "'bad' is not of type 'dict'")
+        self.assertEqual(e.exception.description, "'bad' is not of type 'object'")
         self.assertEqual(e.exception.path, [])
 
     @SkipTest

@@ -2,29 +2,53 @@ from abc import ABCMeta, abstractmethod
 from base64 import b64encode, b64decode
 from functools import partial
 from json import JSONDecodeError
-from typing import Type, TypeVar, Generic, Callable, Union, Any, Tuple, Iterable, Dict, List
+from typing import Type, TypeVar, Generic, Callable, Union, Any, Tuple, Iterable, Dict, List, Set, MutableMapping, \
+    Mapping
 
 from venom import Empty
 from venom import Message
 from venom.exceptions import ValidationError
 from venom.fields import Field, ConverterField, RepeatField, FieldDescriptor
+from venom.message import field_names, fields
+
+
+# def partial(message: Type[Message], include: Set[str], name: str = None):
+#     if len(include) == 0:
+#         return Empty
+#     elif set(field_names(message)).issuperset(include):
+#         return message
+#     else:
+#         if name is None:
+#             name = 'Partial{}'.format(message.__meta__.name)
+#
+#         return message_factory(name, {name: field for name, field in fields(message) if name in include})
 
 
 class Protocol(metaclass=ABCMeta):
     mime = None  # type: str
     name = None  # type: str
 
-    def __new__(cls, fmt: Type[Message]):
-        try:
-            return fmt.__meta__.protocols[cls.name]
-        except KeyError:
+    def __new__(cls, fmt: Type[Message], field_names: Set[str] = None):
+        if field_names is None:
+            try:
+                return fmt.__meta__.protocols[cls.name]
+            except KeyError:
+                instance = super(Protocol, cls).__new__(cls)
+                instance.__init__(fmt)
+                return instance
+        # elif len(field_names) == 0:
+        #     return Protocol.__new__(cls, Empty)
+        else:
             instance = super(Protocol, cls).__new__(cls)
-            instance.__init__(fmt)
+            instance.__init__(fmt, field_names)
             return instance
 
-    def __init__(self, fmt: Type[Message]):
-        fmt.__meta__.protocols[self.name] = self
+    def __init__(self, fmt: Type[Message], field_names_: Set[str] = None):
+        if field_names_ is None:
+            field_names_ = field_names(fmt)
+            fmt.__meta__.protocols[self.name] = self
         self._format = fmt
+        self._fields = [field for field in fields(fmt) if field.name in field_names_]
 
     @classmethod
     def _get_protocol(cls, fmt: Type[Message]):
@@ -34,11 +58,11 @@ class Protocol(metaclass=ABCMeta):
             return cls(fmt)
 
     @abstractmethod
-    def pack(self, message: Message, include: Iterable[str] = None) -> bytes:
+    def pack(self, message: Message) -> bytes:
         pass
 
     @abstractmethod
-    def unpack(self, buffer: bytes, include: Iterable[str] = None) -> Message:
+    def unpack(self, buffer: bytes) -> Message:
         pass
 
 
@@ -53,13 +77,12 @@ JSONValue = Union[JSONPrimitive, Dict[str, JSONPrimitive], List[JSONPrimitive]]
 
 
 class DictProtocol(Protocol, metaclass=ABCMeta):
-
     @abstractmethod
-    def encode(self, message: Message, include: Iterable[str] = None):
+    def encode(self, message: Message):
         pass
 
     @abstractmethod
-    def decode(self, instance: Any, include: Iterable[str] = None) -> Message:
+    def decode(self, instance: Any, message: Message = None) -> Message:
         pass
 
 
@@ -67,10 +90,11 @@ class JSON(DictProtocol):
     mime = 'application/json'
     name = 'json'
 
-    def __init__(self, fmt: Type[Message]):
-        super().__init__(fmt)
-        self.field_encoders = {key: self._field_encoder(field) for key, field in fmt.__fields__.items()}
-        self.field_decoders = {key: self._field_decoder(field) for key, field in fmt.__fields__.items()}
+    def __init__(self, fmt: Type[Message], field_names_: Set[str] = None):
+        super().__init__(fmt, field_names_)
+        # TODO camelCase conversion
+        self.field_encoders = {field.name: self._field_encoder(field) for field in self._fields}
+        self.field_decoders = {field.name: self._field_decoder(field) for field in self._fields}
 
     T = TypeVar('T')
 
@@ -127,20 +151,24 @@ class JSON(DictProtocol):
 
         return partial(self._cast, field.type)
 
-    def encode(self, message: Message, include: Iterable[str] = None):
+    def encode(self, message: Message):
         obj = {}
-        for name, value in message.items():
-            if include is not None and name in include:
-                continue
-            obj[name] = self.field_encoders[name](value)
+        for name, encode in self.field_encoders.items():
+            try:
+                obj[name] = encode(message[name])
+            except KeyError:
+                pass
         return obj
 
-    def decode(self, instance: Any, include: Iterable[str] = None) -> Message:
-        instance = self._cast(dict, instance)
-        message = self._format()
+    def decode(self, instance: Any, message: Message = None) -> Message:
+        if not isinstance(instance, Mapping):
+            raise ValidationError("{} is not of type 'object'".format(repr(instance)))
+
+        if message is None:
+            message = self._format()
 
         for name, decode in self.field_decoders.items():
-            if name in instance and (include is None or name in include):
+            if name in instance:
                 try:
                     message[name] = decode(instance[name])
                 except ValidationError as e:
@@ -154,13 +182,13 @@ class JSON(DictProtocol):
             return b''
         return json.dumps(self.encode(message)).encode('utf-8')
 
-    def unpack(self, buffer: bytes, include: Iterable[str] = None):
-        # special case for 'Empty' message (may be 0-length/empty)
-        if self._format is Empty and len(buffer) == 0:
+    def unpack(self, buffer: bytes):
+        # Allow empty string when message is empty
+        if len(buffer) == 0 and not self._fields:
             return self._format()
 
         try:
-            return self.decode(json.loads(buffer.decode('utf-8')), include)
+            return self.decode(json.loads(buffer.decode('utf-8')))
         except (ValueError, JSONDecodeError) as e:
             raise ValidationError("Invalid JSON: {}".format(str(e)))
 
@@ -179,3 +207,48 @@ def string_decoder(field: Field, protocol: Type[Protocol]):
         return lambda value: _cast(field.type, value)
     # TODO support boolean etc. (with wire formats that allow it)
     raise NotImplementedError('Unable to resolve {} from strings'.format(field))
+
+
+class URIString(JSON):
+
+    def _field_decoder(self, field: FieldDescriptor) -> Callable[[JSONValue], Any]:
+        if isinstance(field, RepeatField):
+            raise NotImplementedError('Unable to decode {} from URI string'.format(field))
+
+        if not isinstance(field, Field):
+            raise NotImplementedError()
+
+        if issubclass(field.type, Message):
+            raise NotImplementedError('Unable to decode {} from URI string'.format(field))
+
+        if field.type is str:
+            return lambda s: s
+
+        if field.type is bytes:
+            # TODO catch TypeError
+            return lambda b: b64decode(b)
+
+        return partial(self._cast, field.type)
+
+    def _field_encoder(self, field: FieldDescriptor) -> Callable[[Any], JSONValue]:
+        if isinstance(field, RepeatField):
+            raise NotImplementedError('Unable to encode {} to URI string'.format(field))
+
+        if not isinstance(field, Field):
+            raise NotImplementedError()
+
+        if issubclass(field.type, Message):
+            raise NotImplementedError('Unable to encode {} to URI string'.format(field))
+
+        if field.type is bytes:
+            return lambda b: b64encode(b)
+
+        return lambda x: str(x)
+
+    @staticmethod
+    def _cast(type_: type, value: Any):
+        # TODO JSON/wire-format specific type names, i.e. object instead of dict, integer instead of int etc.
+        try:
+            return type_(value)
+        except ValueError:
+            raise ValidationError("{} is not formatted as a '{}'".format(repr(value), type_.__name__))

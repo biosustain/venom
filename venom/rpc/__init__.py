@@ -23,7 +23,7 @@ class Venom(object):
     # TODO add internal: bool = None flag; internal = False makes Stubs publicly available.
     def add(self,
             service: Type[Service],
-            client: Type['venom.rpc.comms.Client'] = None,
+            client: Type['venom.rpc.comms.HTTPClient'] = None,
             *client_args,
             **client_kwargs) -> None:
 
@@ -70,10 +70,10 @@ class Venom(object):
                 self._instances[context] = {cls: instance}
         return instance
 
-    def iter_methods(self) -> Iterable[Tuple[Type[Service], 'venom.rpc.method.Method']]:
+    def iter_methods(self, gateway: bool = False) -> Iterable[Tuple[Type[Service], 'venom.rpc.method.Method']]:
         for service in self._services.values():
             # TODO add() to flag services as internal or external so that stubs can still be forwarded if wanted.
-            if isinstance(service, Stub):
+            if not gateway and isinstance(service, Stub):
                 continue
 
             for rpc in service.__methods__.values():

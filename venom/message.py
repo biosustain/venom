@@ -1,7 +1,7 @@
 from abc import ABCMeta
 from collections import MutableMapping
 from collections import OrderedDict
-from typing import Any, Dict, Type, Iterable, TypeVar
+from typing import Any, Dict, Type, Iterable, TypeVar, Tuple, Set
 
 from venom.fields import FieldDescriptor
 from venom.util import meta
@@ -70,7 +70,6 @@ class Message(MutableMapping, metaclass=MessageMeta):
             return self._values[key]
         except KeyError:
             if default is None and key in self.__fields__:
-                print(self.__fields__[key], self.__fields__[key].default())
                 return self.__fields__[key].default()
             return default
 
