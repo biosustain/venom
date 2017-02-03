@@ -5,7 +5,7 @@ import aiohttp
 from venom.exceptions import Error, ErrorResponse
 from venom.rpc.comms import BaseClient
 from venom.rpc.method import Method, HTTPVerb, HTTPFieldLocation
-from venom.protocol import JSON, Protocol, string_decoder, DictProtocol, URIString
+from venom.protocol import JSON, Protocol, DictProtocol, URIString
 
 try:
     from aiohttp import web, ClientSession

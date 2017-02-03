@@ -193,22 +193,6 @@ class JSON(DictProtocol):
             raise ValidationError("Invalid JSON: {}".format(str(e)))
 
 
-def _cast(type_: type, value: Any):
-    # TODO JSON/wire-format specific type names, i.e. object instead of dict, integer instead of int etc.
-    try:
-        return type_(value)
-    except ValueError:
-        raise ValidationError("{} is not formatted as a '{}'".format(repr(value), type_.__name__))
-
-
-def string_decoder(field: Field, protocol: Type[Protocol]):
-    # TODO support converter fields and message fields (unpack message using protocol)
-    if field.type in (int, str):
-        return lambda value: _cast(field.type, value)
-    # TODO support boolean etc. (with wire formats that allow it)
-    raise NotImplementedError('Unable to resolve {} from strings'.format(field))
-
-
 class URIString(JSON):
 
     def _field_decoder(self, field: FieldDescriptor) -> Callable[[JSONValue], Any]:
