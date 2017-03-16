@@ -38,6 +38,9 @@ class ServiceManager(object):
     def prepare_method(self, method: Method, name: str) -> Method:
         return method.prepare(self, name)
 
+    def register(self, venom: 'venom.Venom') -> None:
+        pass
+
 
 class ServiceMeta(type):
     def __new__(metacls, name, bases, members):

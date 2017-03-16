@@ -8,7 +8,7 @@ from typing import Callable, Any, Type, Union, Set, Dict, Sequence, Tuple
 
 from venom.converter import Converter
 from venom.exceptions import NotImplemented_
-from venom.message import Message, Empty
+from venom.message import Message, Empty, field_names
 from venom.rpc.inspection import magic_normalize
 from venom.rpc.resolver import Resolver
 from venom.util import AttributeDict, MetaDict
@@ -95,14 +95,14 @@ class Method(object):
 
         path = set()
         for name in self.http_path_params():
-            if name in self.request.__fields__.keys():
+            if name in field_names(self.request):
                 path.add(name)
 
         if path:
             locations[HTTPFieldLocation.PATH] = path
 
         remaining = set()
-        for name in self.request.__fields__.keys():
+        for name in field_names(self.request):
             if name not in path:
                 remaining.add(name)
 

@@ -19,7 +19,9 @@ setup(
         'ujson',
         'nose'
     ],
-    install_requires=[],
+    install_requires=[
+        'blinker>=1.4.0'
+    ],
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Environment :: Web Environment',
@@ -37,6 +39,5 @@ setup(
         'docs': ['sphinx'],
         'aiohttp': ['aiohttp>=1.2.0', 'ujson'],
         'grpc': ['grpcio'],
-        'zmq': ['pyzmq'],
     }
 )

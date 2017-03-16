@@ -1,5 +1,7 @@
-from typing import Type, Union, Iterable, Tuple
+from typing import Type, Union, Iterable, Tuple, ClassVar
 from weakref import WeakKeyDictionary
+
+from blinker import Signal
 
 from venom.rpc.context import RequestContext
 from venom.rpc.stub import Stub, RPC
@@ -14,9 +16,13 @@ class UnknownService(RuntimeError):
 
 
 class Venom(object):
+    on_add_service: ClassVar[Signal] = Signal('add-service')
+    on_add_public_service: ClassVar[Signal] = Signal('add-public-service')
+
     def __init__(self, *, protocol: Protocol = None):
         self._instances = WeakKeyDictionary()
         self._services = {}
+        self._public_services = {}
         self._clients = {}
 
     # TODO change signature so that all keyword arguments go to the client_cls on init.
@@ -25,6 +31,7 @@ class Venom(object):
             service: Type[Service],
             client: Type['venom.rpc.comms.HTTPClient'] = None,
             *client_args,
+            public: bool = None,
             **client_kwargs) -> None:
 
         name = service.__meta__.name
@@ -32,10 +39,20 @@ class Venom(object):
             if self._services[name] is service:
                 return
             raise ValueError("A service with name '{}' already exists".format(name))
+
         self._services[name] = service
 
         if client:
             self._clients[service] = client(service, *client_args, **client_kwargs)
+        elif public is None:
+            public = True
+
+        service.__manager__.register(self)
+        self.on_add_service.send(self, service=service)
+
+        if public:
+            self._public_services[name] = service
+            self.on_add_public_service.send(self, service=service)
 
     def _resolve_service_cls(self, reference: Union[str, type(Service)]):
         if isinstance(reference, str):
@@ -70,12 +87,8 @@ class Venom(object):
                 self._instances[context] = {cls: instance}
         return instance
 
-    def iter_methods(self, gateway: bool = False) -> Iterable[Tuple[Type[Service], 'venom.rpc.method.Method']]:
-        for service in self._services.values():
-            # TODO add() to flag services as internal or external so that stubs can still be forwarded if wanted.
-            if not gateway and isinstance(service, Stub):
-                continue
-
+    def iter_methods(self) -> Iterable[Tuple[Type[Service], 'venom.rpc.method.Method']]:
+        for service in self._public_services.values():
             for rpc in service.__methods__.values():
                 yield service, rpc
 
