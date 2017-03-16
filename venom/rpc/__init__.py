@@ -54,7 +54,7 @@ class Venom(object):
             self._public_services[name] = service
             self.on_add_public_service.send(self, service=service)
 
-    def _resolve_service_cls(self, reference: Union[str, type(Service)]):
+    def _resolve_service_cls(self, reference: Union[str, Type[Service]]):
         if isinstance(reference, str):
             try:
                 return self._services[reference]
@@ -93,4 +93,4 @@ class Venom(object):
                 yield service, rpc
 
     def __iter__(self) -> Iterable[Type[Service]]:
-        return iter(self._services.values())
+        return iter(self._public_services.values())
