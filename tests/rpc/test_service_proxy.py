@@ -2,6 +2,7 @@
 from unittest.mock import MagicMock
 
 from venom.common import IntegerValue
+from venom.rpc import RequestContext
 from venom.rpc import Service, Venom, rpc
 from venom.message import Message
 from venom.fields import Integer
@@ -33,13 +34,14 @@ class ServiceProxyTestCase(AioTestCase):
         venom.add(ConspiracyService)
         venom.add(LocationService)
 
-        conspiracy = venom.get_instance('conspiracy')
-        self.assertIsInstance(conspiracy, ConspiracyService)
+        with venom.get_request_context():
+            conspiracy = venom.get_instance('conspiracy')
+            self.assertIsInstance(conspiracy, ConspiracyService)
 
-        location = venom.get_instance('location')
-        self.assertIsInstance(location, LocationService)
+            location = venom.get_instance('location')
+            self.assertIsInstance(location, LocationService)
 
-        self.assertEqual('Bermuda Triangle', await conspiracy.suspicious_area())
+            self.assertEqual('Bermuda Triangle', await conspiracy.suspicious_area())
 
     async def test_service_proxy_mock_venom(self):
         """
@@ -56,15 +58,18 @@ class ServiceProxyTestCase(AioTestCase):
 
             @rpc
             async def suspicious_area(self) -> str:
+                x = await self.random.random(BetweenRequest(49, 100))
+                print(x)
                 return 'Area {}'.format((await self.random.random(BetweenRequest(49, 100))).value)
 
         venom = MockVenom()
         venom.add(ConspiracyService)
 
-        conspiracy = venom.get_instance('conspiracy')
-        conspiracy.random.random.side_effect = lambda request: IntegerValue(request.min + 2)
-        self.assertIsInstance(conspiracy.random, MagicMock)
-        self.assertEqual('Area 51', await conspiracy.suspicious_area())
+        with venom.get_request_context():
+            conspiracy = venom.get_instance('conspiracy')
+            conspiracy.random.random.side_effect = lambda request: IntegerValue(request.min + 2)
+            self.assertIsInstance(conspiracy.random, MagicMock)
+            self.assertEqual('Area 51', await conspiracy.suspicious_area())
 
     async def test_service_proxy_mock_instance(self):
         """
@@ -77,7 +82,8 @@ class ServiceProxyTestCase(AioTestCase):
             async def suspicious_area(self) -> str:
                 return 'Area {}'.format((await self.random.random()).value)
 
-        conspiracy = mock_instance(ConspiracyService)
-        conspiracy.random.random.return_value = IntegerValue(51)
-        self.assertIsInstance(conspiracy.random, MagicMock)
-        self.assertEqual('Area 51', await conspiracy.suspicious_area())
+        with RequestContext():
+            conspiracy = mock_instance(ConspiracyService)
+            conspiracy.random.random.return_value = IntegerValue(51)
+            self.assertIsInstance(conspiracy.random, MagicMock)
+            self.assertEqual('Area 51', await conspiracy.suspicious_area())

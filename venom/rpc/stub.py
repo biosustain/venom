@@ -9,9 +9,8 @@ from venom.rpc.service import Service
 class Stub(Service):
     def __init__(self,
                  client: 'venom.comms.BaseClient' = None,
-                 venom: 'venom.Venom' = None,
-                 context: 'venom.RequestContext' = None):
-        super().__init__(venom, context)
+                 venom: 'venom.Venom' = None):
+        super().__init__(venom)
         self._client = client
 
     async def invoke_(self, rpc, request, loop: 'asyncio.BaseEventLoop' = None):

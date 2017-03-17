@@ -18,7 +18,9 @@ class MockVenom(Venom):
         super().__init__(*args, **kwargs)
         self._context_mock_instances = WeakKeyDictionary()
 
-    def get_instance(self, reference: Union[str, type], context: RequestContext = None):
+    def get_instance(self, reference: Union[str, type]):
+        context = RequestContext.current()
+
         if context is not None:
             try:
                 return self._context_mock_instances[context][reference]
@@ -26,7 +28,7 @@ class MockVenom(Venom):
                 pass
 
         try:
-            return super().get_instance(reference, context)
+            return super().get_instance(reference)
         except UnknownService:
             instance = AsyncMock()
 
@@ -48,7 +50,7 @@ def mock_venom(*services: Iterable[Type[Service]], **kwargs):
 
 def mock_instance(service: Type[Service], *dependencies: Iterable[Type[Service]], **kwargs):
     venom = mock_venom(service, *dependencies, **kwargs)
-    return venom.get_instance(service, RequestContext())
+    return venom.get_instance(service)
 
 
 def sync(coro):

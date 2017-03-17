@@ -1,15 +1,17 @@
-from typing import Union, Type
+from typing import Union, Type, TypeVar, Generic
 
 from venom.rpc.service import Service
 
 
-class ServiceProxy(object):
+S = TypeVar('S', bound=Service)
+
+class ServiceProxy(Generic[S]):
     # TODO define life-time. can be global or request or session.
-    def __init__(self, reference: Union[str, type]) -> None:
+    def __init__(self, reference: Union[str, Type[S]]) -> None:
         self.reference = reference
 
-    def __get__(self, service: Service, owner) -> Service:
+    def __get__(self, service: Service, owner) -> S:
         if service is None:
-            return self
+            return self  # XXX typing (descriptors not supported properly)
         else:
-            return service.venom.get_instance(self.reference, service.context)
+            return service.venom.get_instance(self.reference)

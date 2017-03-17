@@ -1,9 +1,14 @@
 from unittest import TestCase
 
+from venom import Empty
+from venom.common import StringValue
+from venom.rpc import RequestContext, Venom
 from venom.rpc import rpc, Service
+from venom.rpc.context import DictRequestContext
+from venom.rpc.test_utils import AioTestCase
 
 
-class ServiceTestCase(TestCase):
+class ServiceTestCase(AioTestCase):
 
     def test_service_methods(self):
         class PetService(Service):
@@ -26,3 +31,23 @@ class ServiceTestCase(TestCase):
 
         self.assertEqual(set(SnakeService.__manager__.methods.keys()), {"pet", "boop"})
         self.assertEqual(set(SnakeService.__methods__.keys()), {"pet", "boop"})
+
+
+    async def test_request_context(self):
+        class SnakeService(Service):
+            @rpc
+            def sound(self) -> str:
+                return self.context.get('sound', 'silence')
+
+        venom = Venom()
+        venom.add(SnakeService)
+
+        self.assertEqual(await venom.invoke(SnakeService, SnakeService.sound, Empty()), StringValue('silence'))
+
+        @Venom.before_invoke.connect_via(venom, weak=True)
+        def set_context_sound(sender, **kwargs):
+            RequestContext.current()['sound'] = 'hiss'
+
+        self.assertEqual(await venom.invoke(SnakeService, SnakeService.sound, Empty()), StringValue('hiss'))
+
+

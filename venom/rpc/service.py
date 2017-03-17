@@ -2,6 +2,7 @@ from typing import Dict, Any, MutableMapping
 
 from venom.common import IntegerValueConverter, BooleanValueConverter, DateTimeConverter, DateConverter
 from venom.common import StringValueConverter, NumberValueConverter
+from venom.rpc.context import RequestContextDescriptor
 from venom.rpc.method import Method
 from venom.util import meta, MetaDict
 
@@ -75,9 +76,10 @@ class Service(object, metaclass=ServiceMeta):
     __manager__ = None  # type: ServiceManager
     __methods__ = None  # type: Dict[str, Method]
 
-    def __init__(self, venom: 'venom.Venom' = None, context: 'venom.RequestContext' = None) -> None:
+    context = RequestContextDescriptor()
+
+    def __init__(self, venom: 'venom.Venom' = None) -> None:
         self.venom = venom
-        self.context = context
 
     class Meta:
         name = None

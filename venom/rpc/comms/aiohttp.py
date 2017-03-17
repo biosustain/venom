@@ -1,6 +1,7 @@
 from typing import Type
 
 import aiohttp
+import asyncio
 
 from venom.exceptions import Error, ErrorResponse
 from venom.rpc.comms import BaseClient
@@ -35,8 +36,7 @@ def _route_handler(venom: 'venom.rpc.Venom',
             http_request_query.decode(http_request.url.query, request)
             http_request_path.decode(http_request.match_info, request)
 
-            instance = venom.get_instance(service)
-            response = await rpc.invoke(instance, request)
+            response = await venom.invoke(service, rpc, request)
             return web.Response(body=rpc_response.pack(response),
                                 content_type=rpc_response.mime,
                                 status=http_status)
