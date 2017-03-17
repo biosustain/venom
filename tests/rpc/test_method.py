@@ -46,7 +46,7 @@ class MethodTestCase(AioTestCase):
             def grow(self, request: Snake) -> Snake:
                 return Snake(name=request.name, size=request.size + 1)
 
-        self.assertEqual(SnakeService().grow(Snake('snek', 2)), Snake('snek', 3))
+        self.assertEqual(await SnakeService().grow(SnakeMessage('snek', 2)), SnakeMessage('snek', 3))
         self.assertEqual(await SnakeService.grow.invoke(SnakeService(), SnakeMessage(name='snek', size=2)),
                          SnakeMessage(name='snek', size=3))
         self.assertEqual(await SnakeService.grow.invoke(SnakeService(), SnakeMessage(name='snek')),

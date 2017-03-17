@@ -4,7 +4,7 @@ import re
 import warnings
 from functools import partial
 from types import MethodType
-from typing import Callable, Any, Type, Union, Set, Dict, Sequence, Tuple
+from typing import Callable, Any, Type, Union, Set, Dict, Sequence, Tuple, Mapping, Optional, Awaitable
 
 from venom.converter import Converter
 from venom.exceptions import NotImplemented_
@@ -130,6 +130,7 @@ class ServiceMethod(Method):
         self._fn = fn
         if invokable:
             self._invokable = invokable
+            self._fn = invokable
         else:
             self._invokable = fn
 
