@@ -85,7 +85,7 @@ def magic_normalize(func: Callable[..., Any],
         name, param = func_parameters[0]
         type_ = func_type_hints.get(name, Any)
 
-        unpack_request = False  # type: Union[bool, Tuple[str, ...]]
+        unpack_request: Union[bool, Tuple[str, ...]] = False
 
         if issubclass(type_, Message) and name == 'request':
             # func(self, request: MessageType, ...)

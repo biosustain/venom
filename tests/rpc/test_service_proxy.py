@@ -59,7 +59,6 @@ class ServiceProxyTestCase(AioTestCase):
             @rpc
             async def suspicious_area(self) -> str:
                 x = await self.random.random(BetweenRequest(49, 100))
-                print(x)
                 return 'Area {}'.format((await self.random.random(BetweenRequest(49, 100))).value)
 
         venom = MockVenom()

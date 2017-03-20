@@ -11,7 +11,7 @@ T = TypeVar('T', bool, int, float, str, bytes, 'venom.message.Message')
 
 
 class FieldDescriptor(Generic[T], metaclass=ABCMeta):
-    name = None  # type: Optional[str]
+    name: str = None
 
     def __get__(self, instance: 'venom.message.Message', owner):
         if instance is None:

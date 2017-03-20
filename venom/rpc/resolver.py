@@ -1,11 +1,11 @@
 from abc import abstractmethod, ABCMeta
-from typing import TypeVar, Generic
+from typing import TypeVar, Generic, Type
 
 T = TypeVar('T')
 
 
 class Resolver(Generic[T], metaclass=ABCMeta):
-    python = None  # type: Optional[Type[T]]
+    python: Type[T] = None
 
     async def __call__(self,
                        service: 'venom.rpc.service.Service',

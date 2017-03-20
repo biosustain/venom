@@ -71,10 +71,9 @@ class Service(object, metaclass=ServiceMeta):
     A service is a collection of functions, possibly HTTP routes.
 
     """
-    # TODO Python 3.6 ClassVar
-    __meta__ = None  # type: 'venom.util.AttributeDict'
-    __manager__ = None  # type: ServiceManager
-    __methods__ = None  # type: Dict[str, Method]
+    __meta__: 'venom.util.AttributeDict' = None
+    __manager__: ServiceManager = None
+    __methods__: Dict[str, Method] = None
 
     context = RequestContextDescriptor()
 

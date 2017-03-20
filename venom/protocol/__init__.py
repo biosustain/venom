@@ -25,8 +25,8 @@ from venom.message import field_names, fields
 
 
 class Protocol(metaclass=ABCMeta):
-    mime = None  # type: str
-    name = None  # type: str
+    mime: str = None
+    name: str = None
 
     def __new__(cls, fmt: Type[Message], field_names: Set[str] = None):
         if field_names is None:
