@@ -46,7 +46,7 @@ class MessageMeta(ABCMeta):
 
 
 class Message(MutableMapping, metaclass=MessageMeta):
-    __slots__ = ('_values',)
+    __slots__ = ('_values',)   # TODO slot message fields directly.
     __fields__ = None  # type: Dict[str, FieldDescriptor]
     __meta__ = None  # type: Dict[str, Any]
 

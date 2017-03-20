@@ -6,7 +6,8 @@ import collections
 
 from venom.util import cached_property
 
-T = TypeVar('T')
+
+T = TypeVar('T', bool, int, float, str, bytes, 'venom.message.Message')
 
 
 class FieldDescriptor(Generic[T], metaclass=ABCMeta):
@@ -32,8 +33,7 @@ class FieldDescriptor(Generic[T], metaclass=ABCMeta):
 
 class Field(Generic[T], FieldDescriptor):
     def __init__(self,
-                 type_: Union[T, str],
-                 # TODO replace with Union[Type[T], str] see https://github.com/python/typing/issues/266
+                 type_: Union[Type[T], str],
                  default: Any = None,
                  **options) -> None:
         self._type = type_
@@ -67,17 +67,20 @@ class Field(Generic[T], FieldDescriptor):
                                     self._type.__name__ if not isinstance(self._type, str) else repr(self._type))
 
 
-class ConverterField(Field):
+P = TypeVar('P')
+
+
+class ConverterField(Generic[T, P], Field[T]):
     def __init__(self,
-                 converter: 'venom.converter.Converter' = None,
+                 converter: 'venom.converter.Converter[T, P]' = None,
                  **kwargs) -> None:
         super().__init__(converter.wire, **kwargs)
         self.converter = converter
 
-    def __set__(self, instance: 'venom.message.Message', value):
+    def __set__(self, instance: T, value: P) -> None:
         instance[self.name] = self.converter.format(value)
 
-    def __get__(self, instance: 'venom.message.Message', value):
+    def __get__(self, instance: T, _=None) -> P:
         return self.converter.convert(instance.get(self.name))
 
 

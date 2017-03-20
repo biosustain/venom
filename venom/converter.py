@@ -1,20 +1,24 @@
 from abc import ABCMeta, abstractmethod
-from typing import Any
+from typing import Any, Union, Generic, TypeVar
 from typing import Type
 
 from venom.message import Message
 
+T = TypeVar('T', bool, int, float, str, bytes, 'venom.message.Message')
 
-class Converter(metaclass=ABCMeta):
-    wire = None  # type: Type[Message]
-    python = None  # type: type
+P = TypeVar('P')
+
+
+class Converter(Generic[T, P], metaclass=ABCMeta):
+    wire: Type[T]
+    python: Type[P]
 
     @abstractmethod
-    def convert(self, message: Message) -> Any:
+    def convert(self, value: T) -> P:
         pass
 
     @abstractmethod
-    def format(self, value: Any) -> Message:
+    def format(self, value: P) -> T:
         pass
 
     def __repr__(self):
