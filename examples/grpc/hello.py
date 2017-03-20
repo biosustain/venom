@@ -1,6 +1,7 @@
 from venom.fields import String
 from venom.message import Message
 from venom.rpc import Stub
+from venom.rpc import rpc
 from venom.rpc.stub import RPC
 
 
@@ -13,4 +14,6 @@ class HelloResponse(Message):
 
 
 class HelloRemote(Stub):
-    say_hello = RPC(HelloRequest, HelloResponse)
+    @rpc
+    def say_hello(self, request: HelloRequest) -> HelloResponse:
+        raise NotImplementedError

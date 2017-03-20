@@ -1,7 +1,6 @@
 from venom.fields import String, Bool
 from venom.message import Message
-from venom.rpc import Stub
-from venom.rpc.stub import RPC
+from venom.rpc import Stub, http
 
 
 class HelloRequest(Message):
@@ -14,4 +13,6 @@ class HelloResponse(Message):
 
 
 class HelloStub(Stub):
-    say_hello = RPC.http.POST('./greet/{name}', HelloRequest, HelloResponse)
+    @http.POST('/greet/{name}')
+    def say_hello(self, request: HelloRequest) -> HelloResponse:
+        raise NotImplementedError
