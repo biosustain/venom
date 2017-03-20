@@ -114,8 +114,7 @@ class Method(object):
         return locations
 
 
-# TODO change return value to typing.Coroutine in Python 3.6
-ServiceMethodInvokable = Callable[['venom.rpc.service.Service', Message], Message]
+ServiceMethodInvokable = Callable[['venom.rpc.service.Service', Message], Awaitable[Message]]
 
 
 class ServiceMethod(Method):
