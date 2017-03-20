@@ -4,12 +4,13 @@ from inspect import signature, Parameter
 from typing import Callable, Any, Sequence, get_type_hints, Type, NamedTuple, Optional, List, Dict
 from typing import Tuple
 from typing import Union
-from venom.fields import RepeatField, MapField, Field
+from venom.fields import RepeatField, MapField, Field, ConverterField, Repeat
 
 from venom.converter import Converter
 
-from venom.message import Empty, Message
+from venom.message import Empty, Message, message_factory, fields, field_names
 from venom.rpc.resolver import Resolver
+from venom.util import upper_camelcase
 
 MessageFunction = NamedTuple('MessageFunction', [
     ('request', Type[Message]),
@@ -18,13 +19,41 @@ MessageFunction = NamedTuple('MessageFunction', [
 ])
 
 
+def get_field_type(field):
+    # TODO support other mappings and sequences
+    # XXX support for list-within-a-list situations?
+    if isinstance(field, RepeatField):
+        return List[field.items.type]
+    elif isinstance(field, MapField):
+        return Dict[str, field.values.type]
+    elif isinstance(field, Field):
+        return field.type
+    else:
+        raise NotImplementedError
+
+
+def create_field_from_type(type_, converters: Sequence[Converter] = (), default: Any = None):
+    if type_ in (bool, int, float, str, bytes):
+        return Field(type_, default=default)
+
+    for converter in converters:
+        if converter.python == type_:
+            return ConverterField(converter)
+
+    if issubclass(type_, List):
+        return Repeat(create_field_from_type(type_.__args__[0]))
+
+    raise NotImplementedError(f"Unable to generate field for {type_}")
+
+
 # TODO name arg for use with auto-generation
 def magic_normalize(func: Callable[..., Any],
+                    func_name: str = None,
                     request: Type[Message] = None,
                     response: Type[Message] = None,
-                    converters: Sequence[Converter] = (),
-                    # TODO replace with Sequence[Union[Converter, Type[Converter]]] see https://github.com/python/typing/issues/266
-                    additional_args: Sequence[Resolver] = ()) -> MessageFunction:
+                    converters: Sequence[Union[Converter, Type[Converter]]] = (),
+                    additional_args: Sequence[Union[Resolver, Type[Resolver]]] = (),
+                    auto_generate_request: bool = False) -> MessageFunction:
     """
 
     :param func:
@@ -34,6 +63,9 @@ def magic_normalize(func: Callable[..., Any],
     :param additional_args: additional arguments that are resolved during invocation.
     :return:
     """
+    if func_name is None:
+        func_name = func.__name__
+
     # TODO parameters supplied by the service implementation through a context; session etc.
 
     additional_args = [resolver() if isinstance(resolver, type) else resolver for resolver in additional_args]
@@ -59,7 +91,7 @@ def magic_normalize(func: Callable[..., Any],
             # func(self, request: MessageType, ...)
             if request is None:
                 request = type_
-            elif request != type_ and 'request' not in request.__fields__:
+            elif request != type_ and 'request' not in field_names(request):
                 raise RuntimeError("Bad argument in {}: "
                                    "'{}' should be {}, but got {}".format(func, name, request, type_))
 
@@ -85,25 +117,17 @@ def magic_normalize(func: Callable[..., Any],
                     remaining_params[name] = (func_type_hints.get(name, Any), param.default)
 
             if request:  # unpack from request message
+                request_fields = request.__fields__
                 message_params = set()
 
                 for name, type_ in required_params.items():
-                    if name not in request.__fields__:
+                    try:
+                        field = request_fields[name]
+                    except KeyError:
                         raise RuntimeError("Unexpected required argument in {}: "
                                            "'{}' is not a field of {}".format(func, name, request))
 
-                    field = request.__fields__[name]
-
-                    # TODO support other mappings and sequences
-                    # XXX support for list-within-a-list situations?
-                    if isinstance(field, RepeatField):
-                        field_type = List[field.items.type]
-                    elif isinstance(field, MapField):
-                        field_type = Dict[str, field.values.type]
-                    elif isinstance(field, Field):
-                        field_type = field.type
-                    else:
-                        raise NotImplementedError
+                    field_type = get_field_type(field)
 
                     if type_ not in (Any, field_type):
                         raise RuntimeError("Bad argument in {}: "
@@ -112,19 +136,9 @@ def magic_normalize(func: Callable[..., Any],
                     message_params.add((name, None))
 
                 for name, (type_, default) in remaining_params.items():
-                    if name in request.__fields__:
-                        field = request.__fields__[name]
-
-                        # TODO support other mappings and sequences
-                        # XXX support for list-within-a-list situations?
-                        if isinstance(field, RepeatField):
-                            field_type = List[field.items.type]
-                        elif isinstance(field, MapField):
-                            field_type = Dict[str, field.values.type]
-                        elif isinstance(field, Field):
-                            field_type = field.type
-                        else:
-                            raise NotImplementedError
+                    if name in request_fields:
+                        field = request_fields[name]
+                        field_type = get_field_type(field)
 
                         if type_ not in (Any, field_type):
                             raise RuntimeError("Bad argument in {}: "
@@ -132,14 +146,29 @@ def magic_normalize(func: Callable[..., Any],
 
                         message_params.add((name, default))
 
-                if message_params == set(request.__fields__.keys()):
+                if message_params == field_names(request):
                     unpack_request = True
                 else:
                     unpack_request = tuple(message_params)
 
             else:  # auto-generate message from params (uses converters where necessary)
                 unpack_request = True
-                raise NotImplementedError("No message auto-generation support yet in {}".format(func))  # TODO
+
+                if not auto_generate_request:
+                    raise RuntimeError("Message auto-generation required in {}".format(func))  # TODO
+
+                message_fields = {}
+                for name, param in func_parameters:
+                    type_ = func_type_hints.get(name, Any)
+
+                    if param.default is Parameter.empty:
+                        message_fields[name] = create_field_from_type(type_, converters=converters)
+                    else:
+                        message_fields[name] = create_field_from_type(type_,
+                                                                      converters=converters,
+                                                                      default=param.default)
+
+                request = message_factory(f'{upper_camelcase(func_name)}Request', message_fields)
     else:  # func(self)
         if request is None:
             request = Empty

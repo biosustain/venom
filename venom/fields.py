@@ -35,10 +35,12 @@ class Field(Generic[T], FieldDescriptor):
     def __init__(self,
                  type_: Union[Type[T], str],
                  default: Any = None,
+                 name: str = None,
                  **options) -> None:
         self._type = type_
         self._default = default
         self.options = options
+        self.name = name
 
     def default(self):
         if self._default is None:
@@ -63,8 +65,8 @@ class Field(Generic[T], FieldDescriptor):
 
     def __repr__(self):
         return '<{} {}:{}>'.format(self.__class__.__name__,
-                                    self.name,
-                                    self._type.__name__ if not isinstance(self._type, str) else repr(self._type))
+                                   self.name,
+                                   self._type.__name__ if not isinstance(self._type, str) else repr(self._type))
 
 
 P = TypeVar('P')
@@ -109,7 +111,7 @@ class Int64(Field[int]):
         super().__init__(int, **kwargs)
 
 
-Integer = Int64
+Integer = Int = Int64
 
 
 class Float32(Field[float]):
@@ -162,20 +164,27 @@ class _RepeatValueProxy(collections.MutableSequence):
 
 
 class RepeatField(Generic[CT], FieldDescriptor):
-    def __init__(self, items: Type[CT]) -> None:
+    def __init__(self, items: Type[CT], name: str = None) -> None:
         self.items = items
+        self.name = name
 
     def __get__(self, instance: 'venom.message.Message', owner):
         if instance is None:
             return self
         return _RepeatValueProxy(instance, self.name)
 
+    def __eq__(self, other):
+        if not isinstance(other, RepeatField):
+            return False
+        return self.items == other.items and self.name == other.name
+
 
 class MapField(Generic[CT], FieldDescriptor):
-    def __init__(self, values: Type[CT]) -> None:
+    def __init__(self, values: Type[CT], name: str = None) -> None:
         super().__init__()
         self.keys = String()
         self.values = values
+        self.name = name
 
 
 def Repeat(items: Union[Field, MapField, RepeatField, type, str], **kwargs) -> RepeatField:
