@@ -11,7 +11,7 @@ V = TypeVar('V')
 T = TypeVar('T')
 
 
-class _ValueConverter(Generic[V, T], Converter):
+class _ValueConverter(Converter[V, T]):
     def convert(self, message: V) -> T:
         return message.value
 
