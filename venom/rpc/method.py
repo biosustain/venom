@@ -22,86 +22,6 @@ class HTTPFieldLocation(enum.Enum):
     PATH = 'path'
     BODY = 'body'
 
-#
-# class MethodBinding(object):
-#     def __init__(self,
-#                  method: Method,
-#                  service: Type['venom.rpc.service.Service'],
-#                  name: str):
-#         self.descriptor = descriptor
-#         self.service = service
-#
-#     await def invoke(self,
-#                      service: 'Service',
-#                      request: Message,
-#                      loop: 'asyncio.BaseEventLoop' = None) -> Message:
-#         return await venom.invoke(self.invokable(request), loop=loop)
-#
-#     def __call__(self, *args, **kwargs):
-#         pass
-#
-#
-# class Method(object):
-#     binding_cls: Type[MethodBinding] = MethodBinding
-#     bindings: Mapping[Type['Service'], MethodBinding]
-#
-#     def __init__(self):
-#         pass
-#
-#
-#     def prepare(self, service: Type['Service'], name: str):
-#         self.bindings[service] = self.binding_cls(self, service, name)
-#
-#     def __get__(self, instance, owner) -> Union[Method, MethodType]:
-#         if instance is None:
-#             return self
-#         else:
-#             return self.bindings[owner]
-#
-#
-# class MethodDecorator(MethodDescriptor):
-#     def __init__(self,
-#                  fn: Callable[..., Any],
-#                  *args,
-#                  **kwargs) -> None:
-#         self._fn = fn
-#
-#
-#     def _register_stub(self, stub: Type['venom.rpc.service.Service'] = None) -> None:
-#         if stub:
-#             try:
-#                 stub_method = stub.__methods__[self.name]
-#                 self.request = self.request or stub_method.request
-#                 self.response = self.response or stub_method.response
-#             except KeyError:
-#                 pass  # method not specified in stub
-#
-#     def prepare(self,
-#                 manager: 'venom.rpc.service.ServiceManager',
-#                 name: str,
-#                 *args: Tuple[Resolver, ...],
-#                 converters: Sequence[Converter] = ()):
-#         # TODO Use Python 3.6 __set_name__()
-#
-#         if self.name is None:
-#             self.name = name
-#
-#         self._register_stub(manager.meta.get('stub'))
-#
-#         magic_fn = magic_normalize(self._fn,
-#                                    request=self.request,
-#                                    response=self.response,
-#                                    additional_args=args,
-#                                    converters=tuple(converters) + tuple(manager.meta.converters))
-#
-#         return MethodBinding(self,
-#                              invokable=magic_fn.invokable,
-#                              http_rule=self._http_rule,
-#                              http_verb=self._http_verb,
-#                              http_status=self._http_status,
-#                              **self.options)
-
-
 
 class Method(object):
 
@@ -192,46 +112,6 @@ class Method(object):
         else:
             locations[HTTPFieldLocation.QUERY] = remaining
         return locations
-
-#
-# class HTTPOptions(Message):
-#     http_rule = String()
-#     http_field_locations = Map(HTTPFieldLocation)
-#
-class HTTPOptions(NamedTuple):
-    rule: str
-    status: int
-    field_locations: Mapping[str, HTTPFieldLocation]
-
-
-MethodInvokable = Callable[['venom.rpc.service.Service', Message], Awaitable[Message]]
-
-
-class BoundMethod(object):
-    method: Method
-    service: Type['venom.rpc.service.Service']
-
-    name: str
-    request: Type[Message]
-    response: Type[Message]
-
-    options: Mapping[str, Any]
-    http_options: Optional[HTTPOptions]
-
-    invokable: MethodInvokable
-
-    def __init__(self, method: Method, service: Type['venom.rpc.service.Service']):
-        self.method = method
-        self.service = service
-
-    async def invoke(self,
-                     venom: 'venom.rpc.Venom',
-                     request: Message,
-                     loop: 'asyncio.BaseEventLoop' = None) -> Message:
-        return await venom.invoke(self.invokable(request), loop=loop)
-
-
-
 
 
 # TODO change return value to typing.Coroutine in Python 3.6
