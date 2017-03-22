@@ -4,8 +4,7 @@ from typing import Iterable, TypeVar, Generic, Any, Tuple, Union, Type
 
 import collections
 
-from venom.util import cached_property
-
+from venom.util import cached_property, AttributeDict
 
 T = TypeVar('T', bool, int, float, str, bytes, 'venom.message.Message')
 
@@ -39,7 +38,7 @@ class Field(Generic[T], FieldDescriptor):
                  **options) -> None:
         self._type = type_
         self._default = default
-        self.options = options
+        self.options = AttributeDict(options)
         self.name = name
 
     def default(self):
