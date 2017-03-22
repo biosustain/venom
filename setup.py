@@ -15,7 +15,7 @@ setup(
     long_description=codecs.open('README.rst', encoding='utf-8').read(),
     test_suite='nose.collector',
     tests_require=[
-        'aiohttp>=1.2.0',
+        'aiohttp>=2.0.1',
         'ujson',
         'nose'
     ],

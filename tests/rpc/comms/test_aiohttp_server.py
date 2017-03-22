@@ -13,7 +13,7 @@ from venom.rpc.test_utils import mock_venom
 
 
 class AioHTTPSimpleServerTestCase(AioHTTPTestCase):
-    def get_app(self, loop):
+    def get_app(self):
         class Snake(Message):
             id = Int64()
             name = String()
@@ -51,7 +51,7 @@ class AioHTTPSimpleServerTestCase(AioHTTPTestCase):
                 raise NotImplementedError
 
         venom = mock_venom(SnakeService)
-        return create_app(venom, loop=loop)
+        return create_app(venom)
 
     @unittest_run_loop
     async def test_route_POST(self):

@@ -49,11 +49,9 @@ def _route_handler(venom: 'venom.rpc.Venom',
 
 def create_app(venom: 'venom.rpc.Venom',
                app: web.Application = None,
-               protocol_factory: Type[Protocol] = JSON,
-               *,
-               loop=None):
+               protocol_factory: Type[Protocol] = JSON):
     if app is None:
-        app = web.Application(loop=loop)
+        app = web.Application()
 
     for service, rpc in venom.iter_methods():
         http_rule = rpc.http_rule(service)

@@ -25,7 +25,7 @@ class GreetingStub(Stub):
 
 
 class AioHTTPEndToEndTestCase(AioHTTPTestCase):
-    def get_app(self, loop):
+    def get_app(self):
         class GreetingService(Service):
             class Meta:
                 stub = GreetingStub
@@ -36,7 +36,7 @@ class AioHTTPEndToEndTestCase(AioHTTPTestCase):
 
         venom = Venom()
         venom.add(GreetingService)
-        return create_app(venom, loop=loop)
+        return create_app(venom)
 
     @unittest_run_loop
     async def test_client_success(self):
