@@ -6,11 +6,12 @@ from venom.rpc import Service
 
 
 class Reflect(object):
+    services: Set[Service]
     methods = Set[Method]
     messages: Set[Type[Message]]
 
     def __init__(self):
-        pass
+        self.services = set()
 
     def add(self, service: Type[Service]):
-        raise NotImplementedError
+        self.services.add(service)
