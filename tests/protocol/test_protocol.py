@@ -6,7 +6,6 @@ from venom.protocol import Protocol
 
 
 class ProtocolTestCase(TestCase):
-
     def test_cache(self):
         class FooProtocol(Protocol):
             name = 'foo'
@@ -22,5 +21,3 @@ class ProtocolTestCase(TestCase):
 
         protocol = FooProtocol(Pet)
         self.assertIs(Pet.__meta__.protocols['foo'], protocol)
-
-

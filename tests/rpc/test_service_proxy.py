@@ -1,30 +1,29 @@
-
 from unittest.mock import MagicMock
 
 from venom.common import IntegerValue
+from venom.fields import Integer
+from venom.message import Message, Empty
 from venom.rpc import RequestContext
 from venom.rpc import Service, Venom, rpc
-from venom.message import Message, Empty
-from venom.fields import Integer
 from venom.rpc import ServiceProxy
 from venom.rpc.test_utils import MockVenom, AioTestCase, mock_instance
 
 
 class ServiceProxyTestCase(AioTestCase):
-
     async def test_service_proxy_internal(self):
         """
         ServiceProxy usage scenario without any mocking.
 
         Note that this does not involve the API client and therefore the function signature is not regulated.
         """
+
         class LocationService(Service):
             @rpc
             async def exotic(self) -> str:
                 return 'Bermuda'
 
         class ConspiracyService(Service):
-            location = ServiceProxy('location')
+            location = ServiceProxy(LocationService)
 
             @rpc
             async def suspicious_area(self) -> str:
@@ -49,6 +48,7 @@ class ServiceProxyTestCase(AioTestCase):
 
         RPC calls are always asynchronous and it is recommended to only pass messages.
         """
+
         class BetweenRequest(Message):
             min = Integer()
             max = Integer()
@@ -74,6 +74,7 @@ class ServiceProxyTestCase(AioTestCase):
         """
         ServiceProxy usage with mock_instance() which is as shorthand for setting up MockVenom with a service to test.
         """
+
         class ConspiracyService(Service):
             random = ServiceProxy('random')
 

@@ -1,12 +1,41 @@
-from abc import abstractmethod, ABCMeta
-from typing import Type
+from abc import abstractmethod, ABC
+from types import MethodType
+from typing import Type, Generic, TypeVar, ClassVar, Any
 
+from venom.exceptions import NotImplemented_
 from venom.protocol import Protocol, JSON
+from venom.rpc.method import Method, Req, Res
+
+S = TypeVar('S', bound='venom.rcp.service.Service')
 
 
-class BaseClient(metaclass=ABCMeta):
-    def __init__(self, stub: Type['venom.rpc.Service'], *, protocol_factory: Type[Protocol] = None):
-        self._stub = stub
+class ClientMethod(Method[S, Req, Res]):
+    def __init__(self, client: 'AbstractClient[S]', stub_method: Method[S, Req, Res]):
+        super().__init__(stub_method.name,
+                         stub_method.request,
+                         stub_method.response,
+                         service=stub_method.service,
+                         http_path=stub_method.http_path,
+                         http_method=stub_method.http_method,
+                         http_status=stub_method.http_status,
+                         **stub_method.options)
+        self.client = client
+
+    async def invoke(self, instance: Any, request: Req, loop: 'asyncio.BaseEventLoop' = None) -> Res:
+        return await self.client.invoke(self, request)
+
+
+class AbstractClient(ABC, Generic[S]):
+    client_method_cls: ClassVar[Type['ClientMethod']] = ClientMethod
+    stub: Type[S]
+
+    def __init__(self, stub: Type[S], *, protocol_factory: Type[Protocol] = None):
+        self.stub = stub
+        # NOTE method bindings for all methods in the stub.
+        for name, stub_method in stub.__methods__.items():
+            method = self.client_method_cls(self, stub_method)
+            # self.__methods__[name] = method
+            setattr(self, name, method.__get__(self))
 
         if protocol_factory is None:
             protocol_factory = JSON
@@ -14,8 +43,5 @@ class BaseClient(metaclass=ABCMeta):
         self._protocol_factory = protocol_factory
 
     @abstractmethod
-    async def invoke(self,
-                     stub: 'venom.rpc.Service',
-                     rpc: 'venom.rpc.stub.RPC',
-                     request: 'venom.message.Message'):
+    async def invoke(self, method: Method, request: 'venom.message.Message'):
         raise NotImplementedError

@@ -5,7 +5,6 @@ from venom.rpc.reflect.service import ReflectService
 
 
 class ReflectServiceTestCase(TestCase):
-
     def test_service_registration(self):
         class BeforeService(Service):
             pass

@@ -4,7 +4,7 @@ import asyncio
 from threading import Thread
 from typing import Type
 
-from venom.rpc.comms import BaseClient
+from venom.rpc.comms import AbstractClient
 from venom.protocol import Protocol, JSON
 
 try:
@@ -64,7 +64,7 @@ def create_server(venom: 'venom.rpc.Venom',
     return implementations.server(method_implementations, options=server_options)
 
 
-class Client(BaseClient):
+class Client(AbstractClient):
     def __init__(self, stub: Type['venom.rpc.Service'], host=None, port=50051, *, protocol_factory: Type[Protocol] = None):
         super().__init__(stub, protocol_factory=protocol_factory)
         channel = implementations.insecure_channel(host, port)

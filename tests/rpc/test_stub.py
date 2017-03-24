@@ -7,12 +7,11 @@ from venom.exceptions import NotImplemented_
 from venom.fields import String
 from venom.message import fields
 from venom.rpc import rpc
-from venom.rpc.stub import Stub, RPC
+from venom.rpc.stub import Stub
 from venom.rpc.test_utils import AioTestCase
 
 
 class StubTestCase(AioTestCase):
-
     def test_stub_rpc(self):
         class PetStub(Stub):
             @rpc
@@ -78,10 +77,9 @@ class StubTestCase(AioTestCase):
 
     async def test_rpc_invoke(self):
         class PetStub(Stub):
-            pet = RPC(Empty, Empty)
-
-        with self.assertRaises(NotImplementedError):
-            await PetStub().pet(Empty())
+            @rpc
+            def pet(self):
+                pass
 
         with self.assertRaises(NotImplemented_):
             await PetStub.pet.invoke(PetStub(), Empty())

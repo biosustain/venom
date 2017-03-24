@@ -4,7 +4,7 @@ import aiohttp
 import asyncio
 
 from venom.exceptions import Error, ErrorResponse
-from venom.rpc.comms import BaseClient
+from venom.rpc.comms import AbstractClient
 from venom.rpc.method import Method, HTTPVerb, HTTPFieldLocation
 from venom.protocol import JSON, Protocol, DictProtocol, URIString
 
@@ -15,20 +15,19 @@ except ImportError:
 
 
 def _route_handler(venom: 'venom.rpc.Venom',
-                   service: Type['venom.rpc.Service'],
-                   rpc: Method,
+                   method: Method,
                    protocol_factory: Type[Protocol],
                    query_protocol_factory: Type[DictProtocol] = URIString,
                    path_protocol_factory: Type[DictProtocol] = URIString):
-    rpc_response = protocol_factory(rpc.response)
+    rpc_response = protocol_factory(method.response)
     rpc_error_response = protocol_factory(ErrorResponse)
 
-    http_status = rpc.http_status
+    http_status = method.http_status
 
-    http_field_locations = rpc.http_field_locations()
-    http_request_body = protocol_factory(rpc.request, http_field_locations[HTTPFieldLocation.BODY])
-    http_request_query = query_protocol_factory(rpc.request, http_field_locations[HTTPFieldLocation.QUERY])
-    http_request_path = path_protocol_factory(rpc.request, http_field_locations[HTTPFieldLocation.PATH])
+    http_field_locations = method.http_field_locations()
+    http_request_body = protocol_factory(method.request, http_field_locations[HTTPFieldLocation.BODY])
+    http_request_query = query_protocol_factory(method.request, http_field_locations[HTTPFieldLocation.QUERY])
+    http_request_path = path_protocol_factory(method.request, http_field_locations[HTTPFieldLocation.PATH])
 
     async def handler(http_request):
         try:
@@ -36,7 +35,7 @@ def _route_handler(venom: 'venom.rpc.Venom',
             http_request_query.decode(http_request.url.query, request)
             http_request_path.decode(http_request.match_info, request)
 
-            response = await venom.invoke(service, rpc, request)
+            response = await venom.invoke(method, request)
             return web.Response(body=rpc_response.pack(response),
                                 content_type=rpc_response.mime,
                                 status=http_status)
@@ -53,14 +52,15 @@ def create_app(venom: 'venom.rpc.Venom',
     if app is None:
         app = web.Application()
 
-    for service, rpc in venom.iter_methods():
-        http_rule = rpc.http_rule(service)
-        app.router.add_route(rpc.http_verb.value, http_rule, _route_handler(venom, service, rpc, protocol_factory))
+    for method in venom.iter_methods():
+        app.router.add_route(method.http_method.value,
+                             method.http_path,
+                             _route_handler(venom, method, protocol_factory))
 
     return app
 
 
-class HTTPClient(BaseClient):
+class HTTPClient(AbstractClient):
     def __init__(self,
                  stub: Type['venom.rpc.Service'],
                  base_url: str,
@@ -81,8 +81,7 @@ class HTTPClient(BaseClient):
             self._session = session
 
     async def invoke(self,
-                     stub: 'venom.rpc.Service',
-                     rpc: 'venom.rpc.stub.RPC',
+                     method: Method,
                      request: 'venom.message.Message',
                      *,
                      context: 'venom.RequestContext' = None,
@@ -91,29 +90,29 @@ class HTTPClient(BaseClient):
 
         # TODO optional timeouts
 
-        if rpc.http_path_params():
-            url = self._base_url + rpc.http_rule(stub).format(**request)
+        if method.http_path_parameters():
+            url = self._base_url + method.http_path.format(**request)
         else:
-            url = self._base_url + rpc.http_rule(stub)
+            url = self._base_url + method.http_path
 
         headers = None
-        if rpc.http_verb in (HTTPVerb.POST, HTTPVerb.PUT, HTTPVerb.PATCH):
+        if method.http_method in (HTTPVerb.POST, HTTPVerb.PUT, HTTPVerb.PATCH):
             headers = {'content-type': self._protocol_factory.mime}
 
-        http_field_locations = rpc.http_field_locations()
+        http_field_locations = method.http_field_locations()
 
         # TODO cache this for each RPC call in HTTPClient.__init__()
-        params = self._query_protocol_factory(rpc.request,
+        params = self._query_protocol_factory(method.request,
                                               http_field_locations[HTTPFieldLocation.QUERY]).encode(request)
-        body = self._protocol_factory(rpc.request,
+        body = self._protocol_factory(method.request,
                                       http_field_locations[HTTPFieldLocation.BODY]).pack(request)
 
-        async with self._session.request(rpc.http_verb.value.lower(), url,
+        async with self._session.request(method.http_method.value.lower(), url,
                                          headers=headers,
                                          data=body,
                                          params=params) as response:
             if 200 <= response.status < 400:
-                return self._protocol_factory(rpc.response).unpack(await response.read())
+                return self._protocol_factory(method.response).unpack(await response.read())
             else:
                 self._protocol_factory(ErrorResponse).unpack(await response.read()).raise_()
 

@@ -5,13 +5,12 @@ from venom import Message
 from venom.converter import Converter
 from venom.fields import Int32, String
 from venom.rpc import Service, rpc
-from venom.rpc.method import HTTPVerb
-from venom.rpc.stub import Stub, RPC
+from venom.rpc.method import HTTPVerb, MethodDescriptor
+from venom.rpc.stub import Stub
 from venom.rpc.test_utils import AioTestCase
 
 
 class MethodTestCase(AioTestCase):
-
     async def test_method_override(self):
         Snake = namedtuple('Snake', ('name', 'size'))
 
@@ -30,7 +29,8 @@ class MethodTestCase(AioTestCase):
                 return SnakeMessage(name=value.name, size=value.size)
 
         class SnakeStub(Stub):
-            grow = RPC(SnakeMessage, SnakeMessage)
+            @rpc(SnakeMessage, SnakeMessage)
+            def grow(self): pass
 
         self.assertEqual(set(SnakeStub.__methods__.keys()), {"grow"})
         self.assertEqual(SnakeStub.__methods__['grow'].request, SnakeMessage)
@@ -55,11 +55,14 @@ class MethodTestCase(AioTestCase):
     def test_method_http(self):
         class FooService(Service):
             pass
-        self.assertEqual(RPC(Empty, Empty, name='bar').http_rule(FooService), '/foo/bar')
-        self.assertEqual(RPC(Empty, Empty, name='foo').http_verb, HTTPVerb.POST)
-        self.assertEqual(RPC.http.GET('./bar', Empty, Empty).http_rule(FooService), '/foo/bar')
-        self.assertEqual(RPC.http.POST('./foo', Empty, Empty).http_verb, HTTPVerb.POST)
-        self.assertEqual(RPC.http.DELETE('./foo', Empty, Empty).http_verb, HTTPVerb.DELETE)
+
+        self.assertEqual(MethodDescriptor(Empty, Empty).prepare(FooService, 'bar').http_path, '/foo/bar')
+        self.assertEqual(MethodDescriptor(Empty, Empty).prepare(FooService, 'foo').http_method, HTTPVerb.POST)
+        self.assertEqual(MethodDescriptor(Empty, Empty,
+                                          http_path='./bar').prepare(FooService, 'foo').http_path, '/foo/bar')
+
+        self.assertEqual(MethodDescriptor(Empty, Empty, http_method=HTTPVerb.POST).http_method, HTTPVerb.POST)
+        self.assertEqual(MethodDescriptor(Empty, Empty, http_method=HTTPVerb.DELETE).http_method, HTTPVerb.DELETE)
 
     def test_method_http_rule_params(self):
         class Snake(Message):
@@ -67,6 +70,15 @@ class MethodTestCase(AioTestCase):
             name = String()
             size = Int32()
 
-        self.assertEqual(RPC.http.GET('./', Empty, Empty).http_path_params(), set())
-        self.assertEqual(RPC.http.GET('./{id}', Snake, Snake).http_path_params(), {'id'})
-        self.assertEqual(RPC.http.GET('./{name}/{id}', Snake, Snake).http_path_params(), {'id', 'name'})
+        class FooService(Service):
+            pass
+
+        self.assertEqual(MethodDescriptor(Empty, Empty)
+                         .prepare(FooService, 'foo')
+                         .http_path_parameters(), set())
+        self.assertEqual(MethodDescriptor(Snake, Snake, http_path='./{id}')
+                         .prepare(FooService, 'foo')
+                         .http_path_parameters(), {'id'})
+        self.assertEqual(MethodDescriptor(Snake, Snake, http_path='./{name}/{id}')
+                         .prepare(FooService, 'foo')
+                         .http_path_parameters(), {'id', 'name'})

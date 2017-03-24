@@ -1,19 +1,20 @@
-from typing import Type, Union, Iterable, Tuple, ClassVar
+from typing import Type, Union, Iterable, Tuple, ClassVar, TypeVar, overload
 from weakref import WeakKeyDictionary
 
 import asyncio
 from blinker import Signal
 
 from venom.rpc.context import RequestContext, DictRequestContext
-from venom.rpc.stub import Stub, RPC
-from venom.protocol import Protocol
-from .method import rpc, http
+from venom.rpc.stub import Stub
+from .method import rpc, http, Method
 from .proxy import ServiceProxy
 from .service import Service
 
 
 class UnknownService(RuntimeError):
     pass
+
+S = TypeVar('S', bound=Service)
 
 
 class Venom(object):
@@ -69,7 +70,13 @@ class Venom(object):
             raise UnknownService("'{}' is not known to this Venom".format(reference))
         return reference
 
-    def get_instance(self, reference: Union[str, type]):
+    @overload
+    def get_instance(self, reference: Type[S]) -> S: pass
+
+    @overload
+    def get_instance(self, reference: str) -> Service: pass
+
+    def get_instance(self, reference):
         cls = self._resolve_service_cls(reference)
         context = RequestContext.current()
 
@@ -79,7 +86,7 @@ class Venom(object):
             pass
 
         if issubclass(cls, Stub):
-            instance = cls(self._clients[cls], venom=self)
+            instance = self._clients[cls]
         else:
             instance = cls(venom=self)
 
@@ -90,31 +97,24 @@ class Venom(object):
                 self._instances[context] = {cls: instance}
         return instance
 
-    def iter_methods(self) -> Iterable[Tuple[Type[Service], 'venom.rpc.method.Method']]:
+    def iter_methods(self) -> Iterable[Method]:
         for service in self._public_services.values():
-            for rpc in service.__methods__.values():
-                yield service, rpc
+            for method in service.__methods__.values():
+                yield method
 
     def get_request_context(self) -> RequestContext:
         return self._request_context_cls(self)
 
-    async def _invoke(self,
-                      service: Type[Service],
-                      method: 'venom.rpc.method.Method',
-                      request: 'venom.Message'):
+    async def _invoke(self, method: Method, request: 'venom.Message'):
         with self._request_context_cls(self):
-            instance = self.get_instance(service)
-            self.before_invoke.send(self, service=service, method=method, request=request)
+            instance = self.get_instance(method.service)
+            self.before_invoke.send(self, method=method, request=request)
             return await method.invoke(instance, request)
 
-    async def invoke(self,
-                     service: Type[Service],
-                     method: 'venom.rpc.method.Method',
-                     request: 'venom.Message',
-                     loop: 'asyncio.AbstractEventLoop' = None):
+    async def invoke(self, method: Method, request: 'venom.Message', loop: 'asyncio.AbstractEventLoop' = None):
         if loop is None:
             loop = asyncio.get_event_loop()
-        return await loop.create_task(self._invoke(service, method, request))
+        return await loop.create_task(self._invoke(method, request))
 
     def __iter__(self) -> Iterable[Type[Service]]:
         return iter(self._public_services.values())

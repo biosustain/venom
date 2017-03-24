@@ -2,16 +2,18 @@ import asyncio
 import enum
 import re
 import warnings
+from abc import abstractmethod, ABCMeta, ABC
 from functools import partial
 from types import MethodType
-from typing import Callable, Any, Type, Union, Set, Dict, Sequence, Tuple, Mapping, Optional, Awaitable, NamedTuple
+from typing import Callable, Any, Type, Union, Set, Dict, Sequence, Tuple, Mapping, Optional, Awaitable, NamedTuple, \
+    TypeVar, Generic, overload, Coroutine
 
 from venom.converter import Converter
 from venom.exceptions import NotImplemented_
 from venom.message import Message, Empty, field_names
 from venom.rpc.inspection import magic_normalize
 from venom.rpc.resolver import Resolver
-from venom.util import AttributeDict, MetaDict
+from venom.util import AttributeDict, MetaDict, cached_property
 
 _RULE_PARAMETER_RE = re.compile('\{([^}:]+)(:[^}]*)?\}')
 
@@ -23,79 +25,115 @@ class HTTPFieldLocation(enum.Enum):
     BODY = 'body'
 
 
-class Method(object):
+class HTTPVerb(enum.Enum):
+    GET = 'GET'
+    PUT = 'PUT'
+    POST = 'POST'
+    PATCH = 'PATCH'
+    DELETE = 'DELETE'
+
+
+Req = TypeVar('Req', bound=Message)
+Res = TypeVar('Res', bound=Message)
+
+ServiceType = Type['venom.rpc.service.Service']
+
+
+class MethodDescriptor(Generic[Req, Res], metaclass=ABCMeta):
 
     def __init__(self,
-                 request: Type[Message] = None,
-                 response: Type[Message] = None,
-                 *,
+                 request: Type[Req] = None,
+                 response: Type[Res] = None,
                  name: str = None,
-                 http_verb: 'HTTPVerb' = None,
-                 http_rule: str = None,
+                 *,
+                 http_path: str = None,
+                 http_method: HTTPVerb = None,
                  http_status: int = None,
-                 **options) -> None:
+                 **options: Dict[str, Any]) -> None:
         self.request = request
         self.response = response
         self.name = name
-        self._http_rule = http_rule
-        self._http_verb = http_verb
-        self._http_status = http_status
-        self.options = AttributeDict(options)
 
-    def prepare(self, manager: 'venom.rpc.service.ServiceManager', name: str) -> 'Method':
-        """
-        A hook that allows returning a customized :class:`Method` instance. For instance, the service definition may
-        be used to fill in the blanks on what the `request` and `response` attributes should be.
+        self.http_path = http_path
+        self.http_method = http_method
+        self.http_status = http_status
+        self.options = options
 
-        :param type service:
-        :param str name:
-        :return:
-        """
-        if self.name is None:
-            self.name = name
-        return self
+    def __set_name__(self, owner: Any, name: str):
+        from .service import Service
+        if issubclass(owner, Service):
+            method = self.prepare(owner, self.name or name)
+            owner.__methods__[method.name] = method
+            setattr(owner, name, method)
 
-    # TODO Error handling. Only errors that are venom.exceptions.Error instances should be raised
-    async def invoke(self,
-                     instance: 'venom.rpc.service.Service',
-                     request: Message,
-                     loop: 'asyncio.BaseEventLoop' = None) -> Message:
-        raise NotImplementedError
+    def _get_http_path(self, service: ServiceType, name: str):
+        if self.http_path is None:
+            http_path = './' + name.lower().replace('_', '-')
+        elif self.http_path == '':
+            http_path = '.'
+        else:
+            http_path = self.http_path
 
-    @property
-    def http_verb(self) -> 'HTTPVerb':
-        if self._http_verb is None:
+        if service is not None and http_path.startswith('.'):
+            return service.__meta__.http_path + http_path[1:]
+        return http_path
+
+    def _get_http_method(self) -> HTTPVerb:
+        if self.http_method is None:
             return HTTPVerb.POST
-        return self._http_verb
+        return self.http_method
 
-    @property
-    def http_status(self) -> int:
-        if self._http_status is None:
-            if self.response == Empty:
+    def _get_http_status(self, response: Message):
+        if self.http_status is None:
+            if response == Empty:
                 return 204  # No Content
             return 200  # OK
-        return self._http_status
+        return self.http_status
 
-    def http_rule(self, service: 'venom.Service' = None) -> str:
-        if self._http_rule is None:
-            http_rule = './' + self.name.lower().replace('_', '-')
-        elif self._http_rule == '':
-            http_rule = '.'
-        else:
-            http_rule = self._http_rule
+    def prepare(self, service: ServiceType, name: str) -> 'Method':
+        return Method(self.name or name,
+                      self.request or Empty,
+                      self.response or Empty,
+                      service,
+                      http_path=self._get_http_path(service, self.name or name),
+                      http_method=self._get_http_method(),
+                      http_status=self._get_http_status(self.response or Empty),
+                      **self.options)
 
-        if service is not None and http_rule.startswith('.'):
-            return service.__meta__.http_rule + http_rule[1:]
-        return http_rule
 
-    def http_path_params(self) -> Set[str]:
-        return set(m.group(1) for m in re.finditer(_RULE_PARAMETER_RE, self._http_rule or ''))
+S = TypeVar('S', bound='venom.rpc.service.Service')
+
+
+class Method(Generic[S, Req, Res], MethodDescriptor[Req, Res]):
+    service: Type[S]
+
+    def __init__(self,
+                 name: str,
+                 request: Type[Req],
+                 response: Type[Res],
+                 service: Type[S],
+                 *,
+                 http_path: str,
+                 http_method: HTTPVerb,
+                 http_status: int,
+                 **options: Dict[str, Any]) -> None:
+        super().__init__(request,
+                         response,
+                         name,
+                         http_path=http_path,
+                         http_method=http_method,
+                         http_status=http_status,
+                         **options)
+        self.service = service
+
+    def http_path_parameters(self) -> Set[str]:
+        return set(m.group(1) for m in re.finditer(_RULE_PARAMETER_RE, self.http_path or ''))
 
     def http_field_locations(self) -> Dict[HTTPFieldLocation, Set[str]]:
         locations = {location: set() for location in HTTPFieldLocation}
 
         path = set()
-        for name in self.http_path_params():
+        for name in self.http_path_parameters():
             if name in field_names(self.request):
                 path.add(name)
 
@@ -107,81 +145,154 @@ class Method(object):
             if name not in path:
                 remaining.add(name)
 
-        if self.http_verb in (HTTPVerb.POST, HTTPVerb.PATCH, HTTPVerb.PUT):
+        if self.http_method in (HTTPVerb.POST, HTTPVerb.PATCH, HTTPVerb.PUT):
             locations[HTTPFieldLocation.BODY] = remaining
         else:
             locations[HTTPFieldLocation.QUERY] = remaining
         return locations
 
+    # TODO Error handling. Only errors that are venom.exceptions.Error instances should be raised
+    async def invoke(self,
+                     instance: S,
+                     request: Req,
+                     loop: 'asyncio.BaseEventLoop' = None) -> Res:
+        raise NotImplemented_()
 
-ServiceMethodInvokable = Callable[['venom.rpc.service.Service', Message], Awaitable[Message]]
+    @overload
+    def __get__(self, instance: None, owner: Type[S] = None) -> 'MethodDescriptor[Req, Res]': pass
 
+    @overload
+    def __get__(self, instance: S, owner: Type[S] = None) -> 'MethodType': pass
 
-class ServiceMethod(Method):
-    def __init__(self,
-                 fn: Callable[..., Any],
-                 request: Type[Message] = None,
-                 response: Type[Message] = None,
-                 *,
-                 name: str = None,
-                 invokable: ServiceMethodInvokable = None,
-                 **options) -> None:
-        super(ServiceMethod, self).__init__(request, response, name=name, **options)
-        self._fn = fn
-        if invokable:
-            self._invokable = invokable
-            self._fn = invokable
-        else:
-            self._invokable = fn
-
-    # NOTE: typing does not understand descriptors yet. There will be (inaccurate) warnings because the IDE
-    #       cannot resolve this.
-    def __get__(self, instance, owner) -> Union[Method, MethodType]:
+    def __get__(self, instance, owner=None):
         if instance is None:
             return self
         else:
-            return MethodType(self._fn, instance)
+            return MethodType(self.invoke, instance)
 
     def __set__(self, instance, value):
         raise AttributeError
 
-    def _register_stub(self, stub: Type['venom.rpc.service.Service'] = None) -> None:
-        if stub:
+    def __repr__(self):
+        return f'<{self.__class__.__name__} [{self.name}]>'
+        # return f'<{self.__class__.__name__} ' \
+        #        f'[{self.name}({self.request.__meta__.name}) -> {self.response.__meta__.name}]>'
+
+
+class ServiceMethodDescriptor(MethodDescriptor[Req, Res]):
+    def __init__(self,
+                 func: Callable[..., Any],
+                 request: Type[Req] = None,
+                 response: Type[Res] = None,
+                 name: str = None,
+                 *,
+                 http_path: str = None,
+                 http_method: HTTPVerb = None,
+                 http_status: int = None,
+                 **options: Dict[str, Any]) -> None:
+        super().__init__(request,
+                         response,
+                         name,
+                         http_path=http_path,
+                         http_method=http_method,
+                         http_status=http_status,
+                         **options)
+        self._func = func
+
+    def prepare(self,
+                service: ServiceType,
+                name: str,
+                *args: Tuple[Resolver, ...],
+                converters: Sequence[Converter] = ()) -> 'ServiceMethod':
+        request = self.request
+        response = self.response
+
+        if service.__stub__:
             try:
-                stub_method = stub.__methods__[self.name]
-                self.request = self.request or stub_method.request
-                self.response = self.response or stub_method.response
+                stub_method = service.__stub__.__methods__[name]
+                request = request or stub_method.request
+                response = response or stub_method.response
+
             except KeyError:
                 pass  # method not specified in stub
 
+        magic_func = magic_normalize(self._func,
+                                     func_name=name,
+                                     request=request,
+                                     response=response,
+                                     additional_args=args,
+                                     converters=tuple(converters) + tuple(service.__meta__.converters),
+                                     auto_generate_request=self.options.get('auto', False))
+
+        from .stub import Stub
+        if issubclass(service, Stub):
+            async def _not_implemented(self, request, loop=None):
+                raise NotImplementedError
+
+            implementation = _not_implemented
+        else:
+            implementation = magic_func.invokable
+
+        return ServiceMethod(name,
+                             magic_func.request,
+                             magic_func.response,
+                             service,
+                             implementation,
+                             http_path=self._get_http_path(service, name),
+                             http_method=self._get_http_method(),
+                             http_status=self._get_http_status(magic_func.response),
+                             **self.options)
+
+    @overload
+    def __get__(self, instance: None, owner: Type[S]) -> 'MethodDescriptor[Req, Res]': pass
+
+    @overload
+    def __get__(self, instance: S, owner: Type[S]) -> 'MethodType': pass
+
+    def __get__(self, instance, owner):
+        if instance is None:
+            return self
+        else:
+            return MethodType(self._func, instance)
+
+
+class ServiceMethod(Method[S, Req, Res]):
+    implementation: Callable[[S, Req], Awaitable[Res]]
+
+    def __init__(self,
+                 name: str,
+                 request: Type[Req],
+                 response: Type[Res],
+                 service: Type[S],
+                 implementation: Callable[[S, Req], Awaitable[Res]],
+                 *,
+                 http_path: str = None,
+                 http_method: HTTPVerb = None,
+                 http_status: int = None,
+                 **options: Dict[str, Any]) -> None:
+        super().__init__(name,
+                         request,
+                         response,
+                         service,
+                         http_path=http_path,
+                         http_method=http_method,
+                         http_status=http_status,
+                         **options)
+        self.implementation = implementation
+
     def prepare(self,
-                manager: 'venom.rpc.service.ServiceManager',
+                service: ServiceType,
                 name: str,
                 *args: Tuple[Resolver, ...],
-                converters: Sequence[Converter] = ()):
-        # TODO Use Python 3.6 __set_name__()
-
-        if self.name is None:
-            self.name = name
-
-        self._register_stub(manager.meta.get('stub'))
-
-        magic_fn = magic_normalize(func=self._fn,
-                                   func_name=name,
-                                   request=self.request,
-                                   response=self.response,
-                                   additional_args=args,
-                                   converters=tuple(converters) + tuple(manager.meta.converters),
-                                   auto_generate_request=self.options.get('auto', False))
-
-        return ServiceMethod(self._fn,
-                             request=magic_fn.request,
-                             response=magic_fn.response,
-                             name=name,
-                             invokable=magic_fn.invokable,
-                             http_rule=self._http_rule,
-                             http_verb=self._http_verb,
-                             http_status=self._http_status,
+                converters: Sequence[Converter] = ()) -> 'ServiceMethod':
+        return ServiceMethod(name,
+                             self.request,
+                             self.response,
+                             service,
+                             self.implementation,
+                             http_path=self._get_http_path(service, name),
+                             http_method=self._get_http_method(),
+                             http_status=self._get_http_status(self.response),
                              **self.options)
 
     async def invoke(self,
@@ -189,50 +300,39 @@ class ServiceMethod(Method):
                      request: Message,
                      loop: 'asyncio.BaseEventLoop' = None):
         try:
-            return await self._invokable(instance, request, loop=loop)
+            return await self.implementation(instance, request, loop=loop)
         except NotImplementedError:
             raise NotImplemented_()
         return response
 
 
 class MethodDecorator(object):
-    def __init__(self, method=ServiceMethod, **method_options):
-        self.method = method
-        self.method_options = method_options
+    def __init__(self, descriptor=ServiceMethodDescriptor, **method_options):
+        self.descriptor = descriptor
+        self.descriptor_kwargs = method_options
 
     def __call__(self, *args, **kwargs) -> Union[Method, Callable[[Callable], Method]]:
         if len(args) == 1 and len(kwargs) == 0 and callable(args[0]):
-            return self.method(args[0])
+            return self.descriptor(args[0])
         else:
-            return lambda fn: self.method(fn, *args, **kwargs)
-
-
-rpc = MethodDecorator()
-
-
-class HTTPVerb(enum.Enum):
-    GET = 'GET'
-    PUT = 'PUT'
-    POST = 'POST'
-    PATCH = 'PATCH'
-    DELETE = 'DELETE'
+            return lambda fn: self.descriptor(fn, *args, **kwargs)
 
 
 class HTTPMethodDecorator(MethodDecorator):
-    def __call__(self, verb: HTTPVerb, *args, **kwargs) -> Union[Method, Callable[[Callable], Method]]:
-        if isinstance(verb, str):
-            verb = HTTPVerb[verb]
+    def __call__(self, method: HTTPVerb, *args, **kwargs) -> Union[Method, Callable[[Callable], Method]]:
+        if isinstance(method, str):
+            verb = HTTPVerb[method]
 
         if len(args) == 1 and len(kwargs) == 0 and callable(args[0]):
-            return self.method(args[0], http_verb=verb, **self.method_options)
+            return self.descriptor(args[0], http_method=method, **self.descriptor_kwargs)
         else:
-            def _http(rule=None, *args, **kwargs):
+            def _http(path=None, *args, **kwargs):
                 return MethodDecorator.__call__(self,
                                                 *args,
-                                                http_verb=verb,
-                                                http_rule=rule,
+                                                http_method=method,
+                                                http_path=path,
                                                 **kwargs,
-                                                **self.method_options)
+                                                **self.descriptor_kwargs)
 
             return _http(*args, **kwargs)
 
@@ -257,4 +357,5 @@ class HTTPMethodDecorator(MethodDecorator):
         return self(HTTPVerb.DELETE, *args, **kwargs)
 
 
+rpc = MethodDecorator()
 http = HTTPMethodDecorator()

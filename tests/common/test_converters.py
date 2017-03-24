@@ -10,7 +10,6 @@ from venom.fields import ConverterField
 
 
 class ConverterFieldsTestCase(TestCase):
-
     def test_datetime(self):
         class Foo(Message):
             created_at = DateTime()

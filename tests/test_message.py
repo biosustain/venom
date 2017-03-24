@@ -1,7 +1,8 @@
 from collections import OrderedDict
 from unittest import TestCase, SkipTest
-from venom.message import Message, from_object
+
 from venom.fields import String, Integer
+from venom.message import Message, from_object
 
 
 class MessageTestCase(TestCase):
@@ -54,4 +55,4 @@ class MessageTestCase(TestCase):
                     ('nk', 'id')
                 )
 
-        # TODO
+                # TODO
