@@ -1,7 +1,7 @@
 from unittest import TestCase
 
 from venom.rpc import Service, Venom
-from venom.rpc.reflect import ReflectService
+from venom.rpc.reflect.service import ReflectService
 
 
 class ReflectServiceTestCase(TestCase):
