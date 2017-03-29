@@ -141,6 +141,3 @@ class Timestamp(Message):
 
     class Meta:
         proto_package = 'google.protobuf'
-
-
-clas
