@@ -3,8 +3,9 @@ from typing import TypeVar, Generic
 
 import datetime
 
+from venom.common import types
 from venom.common.messages import Int64Value, Int32Value, StringValue, Float32Value, Float64Value, BoolValue, Timestamp, \
-    BytesValue
+    BytesValue, Value
 from venom.converter import Converter
 
 V = TypeVar('V')
@@ -83,3 +84,18 @@ class DateTimeConverter(Converter):
         seconds = int(unix)
         nanos = int((unix - seconds) * 10 ** 9)
         return Timestamp(seconds, nanos)
+
+
+# TODO
+# class JSONValueConverter(Converter):
+#     wire = Value
+#     python = types.JSONValue
+#
+#     @staticmethod
+#     def _convert_number_value(value: Value):
+#         return value.number_value
+#
+#     def convert(self, value: Value) -> types.JSONValue:
+#         return {
+#             'number_value': self._convert_number_value
+#         }[value.value.which()](value)

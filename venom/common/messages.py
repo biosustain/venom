@@ -1,7 +1,9 @@
+import enum
+
 from typing import Iterable, Any, Tuple
 
-from venom.fields import String, Int32, Int64, Bool, Float32, Float64, Repeat, Bytes
-from venom.message import Message
+from venom.fields import String, Int32, Int64, Bool, Float32, Float64, Repeat, Bytes, Field, Map
+from venom.message import Message, one_of
 
 
 class StringValue(Message):
@@ -58,13 +60,34 @@ class Float64Value(Message):
 
 NumberValue = Float64Value
 
-# class Value(Message):
-#     value = one_of(
-#         number_value=Number(),
-#         string_value=String(),
-#         # bool_value=Boolean()
-#         # TODO
-#     )
+
+class NullValue(enum.Enum):
+    NULL_VALUE = None
+
+
+class Struct(Message):
+    fields = Map('venom.common.messages.Value')
+
+
+class ListValue(Message):
+    values = Repeat('venom.common.messages.Value')
+
+
+class Value(Message):
+    # null_value = Field(NullValue)
+    number_value = Field(NumberValue)
+    string_value = Field(StringValue)
+    bool_value = Field(BoolValue)
+    struct_value = Field(Struct)
+    list_value = Field(ListValue)
+
+    value = one_of(  # null_value,
+                   number_value,
+                   string_value,
+                   bool_value,
+                   struct_value,
+                   list_value)
+
 
 from venom.protocol import JSON as _JSON
 
@@ -119,3 +142,5 @@ class Timestamp(Message):
     class Meta:
         proto_package = 'google.protobuf'
 
+
+clas
