@@ -76,7 +76,7 @@ def magic_normalize(func: Callable[..., Any],
 
     if len(func_signature.parameters) == 0:
         # no "self" parameter: func()
-        raise RuntimeError("At least one argument expected in {}".format(func))
+        raise RuntimeError(f"At least one argument expected in {func}")
 
     request_converter = None
     func_parameters = tuple(func_signature.parameters.items())[1 + len(additional_args):]
@@ -92,12 +92,12 @@ def magic_normalize(func: Callable[..., Any],
             if request is None:
                 request = type_
             elif request != type_ and 'request' not in field_names(request):
-                raise RuntimeError("Bad argument in {}: "
-                                   "'{}' should be {}, but got {}".format(func, name, request, type_))
+                raise RuntimeError(f"Bad argument in {func}: "
+                                   f"'{name}' should be {request}, but got {type_}")
 
             for name, param in func_parameters[1:]:
                 if param.default is Parameter.empty:
-                    raise RuntimeError("Unexpected required argument in {}: '{}'".format(func, name))
+                    raise RuntimeError(f"Unexpected required argument in {func}: '{name}'")
         elif request is not None and name == 'request':
             for converter in converters:
                 if converter.wire == request and converter.python == type_:
@@ -105,8 +105,8 @@ def magic_normalize(func: Callable[..., Any],
                     break
 
             if not request_converter:
-                raise RuntimeError("Unable to coerce request message to python format: "
-                                   "'{}' in {}".format(type_, func))
+                raise RuntimeError(f"Unable to coerce request message to python format: "
+                                   f"'{type_}' in {func}")
         else:  # func(self, arg: ?, ...)
             required_params, remaining_params = {}, {}
             for name, param in func_parameters:
@@ -124,14 +124,14 @@ def magic_normalize(func: Callable[..., Any],
                     try:
                         field = request_fields[name]
                     except KeyError:
-                        raise RuntimeError("Unexpected required argument in {}: "
-                                           "'{}' is not a field of {}".format(func, name, request))
+                        raise RuntimeError(f"Unexpected required argument in {func}: "
+                                           f"'{name}' is not a field of {request}")
 
                     field_type = get_field_type(field)
 
                     if type_ not in (Any, field_type):
-                        raise RuntimeError("Bad argument in {}: "
-                                           "'{}' should be {}, but got {}".format(func, name, field_type, type_))
+                        raise RuntimeError(f"Bad argument in {func}: "
+                                           f"'{name}' should be {field_type}, but got {type_}")
 
                     message_params.add((name, None))
 
@@ -141,8 +141,8 @@ def magic_normalize(func: Callable[..., Any],
                         field_type = get_field_type(field)
 
                         if type_ not in (Any, field_type):
-                            raise RuntimeError("Bad argument in {}: "
-                                               "'{}' should be {}, but got {}".format(func, name, field_type, type_))
+                            raise RuntimeError(f"Bad argument in {func}: "
+                                               f"'{name}' should be {field_type}, but got {type_}")
 
                         message_params.add((name, default))
 
@@ -155,7 +155,7 @@ def magic_normalize(func: Callable[..., Any],
                 unpack_request = True
 
                 if not auto_generate_request:
-                    raise RuntimeError("Message auto-generation required in {}".format(func))  # TODO
+                    raise RuntimeError(f"Message auto-generation required in {func}")
 
                 message_fields = {}
                 for name, param in func_parameters:
@@ -193,8 +193,8 @@ def magic_normalize(func: Callable[..., Any],
                     break
 
             if not response_converter:
-                raise RuntimeError("Unable to coerce return value to wire format: "
-                                   "'{}' in {}".format(return_type, func))
+                raise RuntimeError(f"Unable to coerce return value to wire format: "
+                                   f"'{return_type}' in {func}")
     elif return_type == Any:
         # NOTE missing return type annotation (assuming 'response' here)
         pass
@@ -207,8 +207,8 @@ def magic_normalize(func: Callable[..., Any],
                 break
 
         if not response_converter:
-            raise RuntimeError("Unable to coerce return value to wire format: "
-                               "'{}' in {}".format(return_type, func))
+            raise RuntimeError(f"Unable to coerce return value to wire format: "
+                               f"'{return_type}' in {func}")
 
     wrap_args = lambda req: (req,)
     wrap_kwargs = lambda req: {}

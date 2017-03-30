@@ -11,7 +11,7 @@ class HelloService(Service):
     @rpc
     async def say_hello(self, request: HelloRequest) -> HelloResponse:
         await asyncio.sleep(1)
-        return HelloResponse(message="Hello, {}!".format(request.name))
+        return HelloResponse(message=f"Hello, {request.name}!")
 
 
 app = Venom()

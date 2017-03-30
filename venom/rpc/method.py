@@ -89,7 +89,7 @@ class MethodDescriptor(Generic[Req, Res], metaclass=ABCMeta):
 
     def _get_http_path(self, service: Type[Service], name: str):
         if self.http_path is None:
-            http_path = './' + name.lower().replace('_', '-')
+            http_path = f"./{name.lower().replace('_', '-')}"
         elif self.http_path == '':
             http_path = '.'
         else:

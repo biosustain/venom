@@ -45,7 +45,7 @@ class AioHTTPEndToEndTestCase(AioHTTPTestCase):
     @unittest_run_loop
     async def test_client_success(self):
         venom = Venom()
-        venom.add(GreeterStub, HTTPClient, 'http://127.0.0.1:{}'.format(self.client.port), session=self.client.session)
+        venom.add(GreeterStub, HTTPClient, f'http://127.0.0.1:{self.client.port}', session=self.client.session)
 
         with venom.get_request_context():
             greeter = venom.get_instance(GreeterStub)
@@ -55,7 +55,7 @@ class AioHTTPEndToEndTestCase(AioHTTPTestCase):
     @unittest_run_loop
     async def test_client_exception(self):
         venom = Venom()
-        venom.add(GreeterStub, HTTPClient, 'http://127.0.0.1:{}'.format(self.client.port), session=self.client.session)
+        venom.add(GreeterStub, HTTPClient, f'http://127.0.0.1:{self.client.port}', session=self.client.session)
 
         with venom.get_request_context():
             with self.assertRaises(NotImplemented_):

@@ -34,7 +34,7 @@ class AioHTTPSimpleServerTestCase(AioHTTPTestCase):
 
             @http.GET('./{id:\d+}', request=Snake)
             def read(self, id: int) -> Snake:
-                return Snake(id, 'Snek #{}'.format(id))
+                return Snake(id, f'Snek #{id}')
 
             # TODO support Repeat!
             # @http.GET('/')

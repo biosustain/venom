@@ -102,13 +102,13 @@ class JSON(DictProtocol):
     def _cast(type_: Type[T], value: Any) -> T:
         # TODO JSON type names, i.e. object instead of dict, integer instead of int etc.
         if not isinstance(value, type_):
-            raise ValidationError("{} is not of type '{}'".format(repr(value), type_.__name__))
+            raise ValidationError(f"{repr(value)} is not of type '{type_.__name__}'")
         return value
 
     @staticmethod
     def _cast_number(value: Any):
         if type(value) not in (int, float):
-            raise ValidationError("{} is not a number".format(value))
+            raise ValidationError(f"{value} is not a number")
         return float(value)
 
     def _field_encoder(self, field: FieldDescriptor) -> Callable[[Any], JSONValue]:
@@ -162,7 +162,7 @@ class JSON(DictProtocol):
 
     def decode(self, instance: Any, message: Message = None) -> Message:
         if not isinstance(instance, Mapping):
-            raise ValidationError("{} is not of type 'object'".format(repr(instance)))
+            raise ValidationError(f"{repr(instance)} is not of type 'object'")
 
         if message is None:
             message = self._format()
@@ -190,20 +190,20 @@ class JSON(DictProtocol):
         try:
             return self.decode(json.loads(buffer.decode('utf-8')))
         except (ValueError, JSONDecodeError) as e:
-            raise ValidationError("Invalid JSON: {}".format(str(e)))
+            raise ValidationError(f"Invalid JSON: {str(e)}")
 
 
 class URIString(JSON):
 
     def _field_decoder(self, field: FieldDescriptor) -> Callable[[JSONValue], Any]:
         if isinstance(field, RepeatField):
-            raise NotImplementedError('Unable to decode {} from URI string'.format(field))
+            raise NotImplementedError(f'Unable to decode {field} from URI string')
 
         if not isinstance(field, Field):
             raise NotImplementedError()
 
         if issubclass(field.type, Message):
-            raise NotImplementedError('Unable to decode {} from URI string'.format(field))
+            raise NotImplementedError(f'Unable to decode {field} from URI string')
 
         if field.type is str:
             return lambda s: s
@@ -216,13 +216,13 @@ class URIString(JSON):
 
     def _field_encoder(self, field: FieldDescriptor) -> Callable[[Any], JSONValue]:
         if isinstance(field, RepeatField):
-            raise NotImplementedError('Unable to encode {} to URI string'.format(field))
+            raise NotImplementedError(f'Unable to decode {field} from URI string')
 
         if not isinstance(field, Field):
             raise NotImplementedError()
 
         if issubclass(field.type, Message):
-            raise NotImplementedError('Unable to encode {} to URI string'.format(field))
+            raise NotImplementedError(f'Unable to decode {field} from URI string')
 
         if field.type is bytes:
             return lambda b: b64encode(b)
@@ -235,4 +235,4 @@ class URIString(JSON):
         try:
             return type_(value)
         except ValueError:
-            raise ValidationError("{} is not formatted as a '{}'".format(repr(value), type_.__name__))
+            raise ValidationError(f"{repr(value)} is not formatted as a '{type_.__name__}'")

@@ -45,7 +45,7 @@ class Venom(object):
         if name in self._services:
             if self._services[name] is service:
                 return
-            raise ValueError("A service with name '{}' already exists".format(name))
+            raise ValueError(f"A service with name '{name}' already exists")
 
         self._services[name] = service
 
@@ -66,7 +66,7 @@ class Venom(object):
             try:
                 return self._services[reference]
             except KeyError:
-                raise UnknownService("No service with name '{}' is known to this Venom".format(reference))
+                raise UnknownService(f"No service with name '{reference}' is known to this Venom")
         elif reference not in self._services.values():
             raise UnknownService("'{}' is not known to this Venom".format(reference))
         return reference
