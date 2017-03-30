@@ -7,6 +7,7 @@ from venom.exceptions import NotImplemented_
 from venom.fields import String
 from venom.message import fields
 from venom.rpc import rpc
+from venom.rpc.method import MethodDescriptor, Method
 from venom.rpc.stub import Stub
 from venom.rpc.test_utils import AioTestCase
 
@@ -19,10 +20,13 @@ class StubTestCase(AioTestCase):
                 raise NotImplementedError
 
         self.assertEqual(set(PetStub.__methods__.keys()), {'pet'})
-        self.assertEqual(PetStub.__methods__['pet'], PetStub.pet)
-        self.assertEqual(PetStub.pet.request, Empty)
-        self.assertEqual(PetStub.pet.response, Empty)
-        self.assertEqual(PetStub.pet.name, 'pet')
+        self.assertIsInstance(PetStub.__methods__['pet'], MethodDescriptor)
+
+        stub = PetStub()
+        self.assertIsInstance(stub.pet, Method)
+        self.assertEqual(stub.pet.request, Empty)
+        self.assertEqual(stub.pet.response, Empty)
+        self.assertEqual(stub.pet.name, 'pet')
 
     def test_stub_rpc_require_auto(self):
         with self.assertRaises(RuntimeError):
@@ -30,6 +34,7 @@ class StubTestCase(AioTestCase):
                 @rpc
                 def greet(self, name: str) -> str:
                     raise NotImplementedError
+            GreeterStub()
 
     def test_stub_rpc_request_auto(self):
         class GreeterStub(Stub):
@@ -37,14 +42,14 @@ class StubTestCase(AioTestCase):
             def greet(self, name: str, shout: bool = False) -> str:
                 raise NotImplementedError
 
-        self.assertEqual(GreeterStub.greet.request.__meta__.name, 'GreetRequest')
-        self.assertEqual(tuple(fields(GreeterStub.greet.request)), (
+        self.assertEqual(GreeterStub().greet.request.__meta__.name, 'GreetRequest')
+        self.assertEqual(tuple(fields(GreeterStub().greet.request)), (
             String(name='name'),
             Bool(name='shout'),
         ))
 
-        self.assertEqual(GreeterStub.greet.response, StringValue)
-        self.assertEqual(GreeterStub.greet.name, 'greet')
+        self.assertEqual(GreeterStub().greet.response, StringValue)
+        self.assertEqual(GreeterStub().greet.name, 'greet')
 
     def test_stub_rpc_request_repeat_auto(self):
         class GreeterStub(Stub):
@@ -52,13 +57,14 @@ class StubTestCase(AioTestCase):
             def greet_many(self, names: List[str]) -> str:
                 raise NotImplementedError
 
-        self.assertEqual(GreeterStub.greet_many.request.__meta__.name, 'GreetManyRequest')
-        self.assertEqual(tuple(fields(GreeterStub.greet_many.request)), (
+        stub = GreeterStub()
+        self.assertEqual(stub.greet_many.request.__meta__.name, 'GreetManyRequest')
+        self.assertEqual(tuple(fields(stub.greet_many.request)), (
             Repeat(String(), name='names'),
         ))
 
-        self.assertEqual(GreeterStub.greet_many.response, StringValue)
-        self.assertEqual(GreeterStub.greet_many.name, 'greet_many')
+        self.assertEqual(stub.greet_many.response, StringValue)
+        self.assertEqual(stub.greet_many.name, 'greet_many')
 
     @SkipTest
     def test_stub_rpc_response_repeat_auto(self):
@@ -82,4 +88,4 @@ class StubTestCase(AioTestCase):
                 pass
 
         with self.assertRaises(NotImplemented_):
-            await PetStub.pet.invoke(PetStub(), Empty())
+            await PetStub().pet(Empty())

@@ -21,21 +21,21 @@ class ClientMethod(Method[S, Req, Res]):
                          **stub_method.options)
         self.client = client
 
-    async def invoke(self, instance: Any, request: Req, loop: 'asyncio.BaseEventLoop' = None) -> Res:
-        return await self.client.invoke(self, request)
+    async def invoke(self, request: Req, loop: 'asyncio.AbstractEventLoop' = None) -> Res:
+        return await self.client.invoke(self, request, loop=loop)
 
 
 class AbstractClient(ABC, Generic[S]):
     client_method_cls: ClassVar[Type['ClientMethod']] = ClientMethod
-    stub: Type[S]
+    stub: S
 
-    def __init__(self, stub: Type[S], *, protocol_factory: Type[Protocol] = None):
+    def __init__(self, stub: S, *, protocol_factory: Type[Protocol] = None):
         self.stub = stub
         # NOTE method bindings for all methods in the stub.
         for name, stub_method in stub.__methods__.items():
             method = self.client_method_cls(self, stub_method)
             # self.__methods__[name] = method
-            setattr(self, name, method.__get__(self))
+            setattr(self, name, method)
 
         if protocol_factory is None:
             protocol_factory = JSON
@@ -43,5 +43,5 @@ class AbstractClient(ABC, Generic[S]):
         self._protocol_factory = protocol_factory
 
     @abstractmethod
-    async def invoke(self, method: Method, request: 'venom.message.Message'):
+    async def invoke(self, method: Method, request: 'venom.message.Message', *, loop: 'asyncio.AbstractEventLoop' = None):
         raise NotImplementedError

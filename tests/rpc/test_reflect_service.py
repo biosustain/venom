@@ -17,4 +17,8 @@ class ReflectServiceTestCase(TestCase):
         venom.add(ReflectService)
         venom.add(AfterService)
 
-        self.assertEqual(ReflectService.__manager__.reflect.services, {BeforeService, AfterService, ReflectService})
+        self.assertEqual(ReflectService.__manager__.reflect.services, {
+            venom.get_instance(BeforeService),
+            venom.get_instance(AfterService),
+            venom.get_instance(ReflectService)
+        })

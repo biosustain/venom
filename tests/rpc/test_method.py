@@ -47,19 +47,19 @@ class MethodTestCase(AioTestCase):
                 return Snake(name=request.name, size=request.size + 1)
 
         self.assertEqual(await SnakeService().grow(SnakeMessage('snek', 2)), SnakeMessage('snek', 3))
-        self.assertEqual(await SnakeService.grow.invoke(SnakeService(), SnakeMessage(name='snek', size=2)),
+        self.assertEqual(await SnakeService().grow.invoke(SnakeMessage(name='snek', size=2)),
                          SnakeMessage(name='snek', size=3))
-        self.assertEqual(await SnakeService.grow.invoke(SnakeService(), SnakeMessage(name='snek')),
+        self.assertEqual(await SnakeService().grow.invoke(SnakeMessage(name='snek')),
                          SnakeMessage(name='snek', size=1))
 
     def test_method_http(self):
         class FooService(Service):
             pass
 
-        self.assertEqual(MethodDescriptor(Empty, Empty).prepare(FooService, 'bar').http_path, '/foo/bar')
-        self.assertEqual(MethodDescriptor(Empty, Empty).prepare(FooService, 'foo').http_method, HTTPVerb.POST)
+        self.assertEqual(MethodDescriptor(Empty, Empty).prepare(FooService(), 'bar').http_path, '/foo/bar')
+        self.assertEqual(MethodDescriptor(Empty, Empty).prepare(FooService(), 'foo').http_method, HTTPVerb.POST)
         self.assertEqual(MethodDescriptor(Empty, Empty,
-                                          http_path='./bar').prepare(FooService, 'foo').http_path, '/foo/bar')
+                                          http_path='./bar').prepare(FooService(), 'foo').http_path, '/foo/bar')
 
         self.assertEqual(MethodDescriptor(Empty, Empty, http_method=HTTPVerb.POST).http_method, HTTPVerb.POST)
         self.assertEqual(MethodDescriptor(Empty, Empty, http_method=HTTPVerb.DELETE).http_method, HTTPVerb.DELETE)
@@ -74,11 +74,11 @@ class MethodTestCase(AioTestCase):
             pass
 
         self.assertEqual(MethodDescriptor(Empty, Empty)
-                         .prepare(FooService, 'foo')
+                         .prepare(FooService(), 'foo')
                          .http_path_parameters(), set())
         self.assertEqual(MethodDescriptor(Snake, Snake, http_path='./{id}')
-                         .prepare(FooService, 'foo')
+                         .prepare(FooService(), 'foo')
                          .http_path_parameters(), {'id'})
         self.assertEqual(MethodDescriptor(Snake, Snake, http_path='./{name}/{id}')
-                         .prepare(FooService, 'foo')
+                         .prepare(FooService(), 'foo')
                          .http_path_parameters(), {'id', 'name'})

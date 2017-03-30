@@ -1,7 +1,7 @@
 from abc import ABCMeta
 from collections import MutableMapping
 from collections import OrderedDict
-from typing import Any, Dict, Type, Iterable, TypeVar, Tuple, Set
+from typing import Any, Dict, Type, Iterable, TypeVar, Tuple, Set, ClassVar
 
 from venom.fields import FieldDescriptor
 from venom.util import meta
@@ -47,8 +47,8 @@ class MessageMeta(ABCMeta):
 
 class Message(MutableMapping, metaclass=MessageMeta):
     __slots__ = ('_values',)   # TODO slot message fields directly.
-    __fields__: Dict[str, FieldDescriptor] = None
-    __meta__: Dict[str, Any] = None
+    __fields__: ClassVar[Dict[str, FieldDescriptor]] = None
+    __meta__: ClassVar[Dict[str, Any]] = None
 
     class Meta:
         name = None

@@ -3,7 +3,7 @@ from typing import Dict, Any, MutableMapping, ClassVar, Type
 from venom.common import IntegerValueConverter, BooleanValueConverter, DateTimeConverter, DateConverter
 from venom.common import StringValueConverter, NumberValueConverter
 from venom.rpc.context import RequestContextDescriptor
-from venom.rpc.method import Method
+from venom.rpc.method import Method, MethodDescriptor
 from venom.util import meta, MetaDict
 
 
@@ -14,7 +14,7 @@ class ServiceManager(object):
     @staticmethod
     def get_service_name(cls_name: str) -> str:
         name = cls_name.lower()
-        for postfix in ('service', 'remote', 'stub'):
+        for postfix in ('service', 'stub'):
             if name.endswith(postfix):
                 return name[:-len(postfix)]
         return name
@@ -33,15 +33,19 @@ class ServiceManager(object):
 
 
 class ServiceMeta(type):
-    def __new__(metacls, name, bases, members):
+    def __new__(metacls, what, bases=(), members=None):
         meta_, meta_changes = meta(bases, members)
-        meta_ = meta_.manager.prepare_meta(name, meta_, meta_changes)
+        meta_ = meta_.manager.prepare_meta(what, meta_, meta_changes)
         manager = meta_.manager(meta_, meta_changes)
         methods = {}
 
         for base in bases:
             if isinstance(base, ServiceMeta):
                 methods.update(base.__methods__)
+
+        for name, member in members.items():
+            if isinstance(member, MethodDescriptor):
+                methods[name] = member
 
         stub = meta_changes.get('stub')
         if stub:
@@ -52,13 +56,12 @@ class ServiceMeta(type):
         members['__meta__'] = manager.meta
         members['__methods__'] = methods
         members['__stub__'] = stub
-
         cls = super(ServiceMeta, metacls).__new__(metacls, name, bases, members)
 
         if stub:
             for name, method in stub.__methods__.items():
                 if name not in methods:
-                    methods[name] = method.prepare(cls, name)
+                    methods[name] = method
         return cls
 
 
@@ -73,8 +76,15 @@ class Service(object, metaclass=ServiceMeta):
 
     context = RequestContextDescriptor()
 
-    def __init__(self, venom: 'venom.Venom' = None) -> None:
+    def __init__(self, venom: 'venom.rpc.Venom' = None) -> None:
         self.venom = venom
+        self.__methods__ = {
+            name: method.prepare(self, name)
+            for name, method in self.__methods__.items()
+        }
+
+        for name, method in self.__methods__.items():
+            setattr(self, name, method)
 
     class Meta:
         name = None
@@ -89,3 +99,6 @@ class Service(object, metaclass=ServiceMeta):
             DateConverter)
         stub = None
         http_path = None
+
+    def __repr__(self):
+        return f'<Service [{self.__meta__.name}]>'

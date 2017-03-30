@@ -85,7 +85,7 @@ class HTTPClient(AbstractClient):
                      request: 'venom.message.Message',
                      *,
                      context: 'venom.RequestContext' = None,
-                     loop: 'asyncio.BaseEventLoop' = None,
+                     loop: 'asyncio.AbstractEventLoop' = None,
                      timeout: int = None):
 
         # TODO optional timeouts

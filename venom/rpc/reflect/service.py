@@ -15,7 +15,7 @@ class ReflectServiceManager(ServiceManager):
         self.reflect = Reflect()
         # TODO setup
 
-    def reflect_service(self, sender: Venom, service: Type[Service]):
+    def reflect_service(self, sender: Venom, service: Service):
         self.reflect.add(service)
         pass  # TODO add reflection (venom specific)
 

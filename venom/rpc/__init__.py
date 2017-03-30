@@ -1,4 +1,4 @@
-from typing import Type, Union, Iterable, Tuple, ClassVar, TypeVar, overload
+from typing import Type, Union, Iterable, Tuple, ClassVar, TypeVar, overload, Mapping
 from weakref import WeakKeyDictionary
 
 import asyncio
@@ -23,10 +23,11 @@ class Venom(object):
     before_invoke: ClassVar[Signal] = Signal('before-invoke')
 
     _request_context_cls: Type[RequestContext]
+    _instances: Mapping[Service, Union[Service, 'venom.rpc.comms.AbstractClient']]
 
     def __init__(self, *, request_context_cls: Type[RequestContext] = DictRequestContext):
         self._request_context_cls = request_context_cls
-        self._instances = WeakKeyDictionary()
+        self._instances = {}
         self._services = {}
         self._public_services = {}
         self._clients = {}
@@ -49,16 +50,16 @@ class Venom(object):
         self._services[name] = service
 
         if client:
-            self._clients[service] = client(service, *client_args, **client_kwargs)
+            self._clients[service] = client(service(self), *client_args, **client_kwargs)
         elif public is None:
             public = True
 
         service.__manager__.register(self)
-        self.on_add_service.send(self, service=service)
 
         if public:
             self._public_services[name] = service
-            self.on_add_public_service.send(self, service=service)
+            self._instances[service] = instance = service(self)
+            self.on_add_public_service.send(self, service=instance)
 
     def _resolve_service_cls(self, reference: Union[str, Type[Service]]):
         if isinstance(reference, str):
@@ -78,28 +79,23 @@ class Venom(object):
 
     def get_instance(self, reference):
         cls = self._resolve_service_cls(reference)
-        context = RequestContext.current()
 
         try:
-            return self._instances[context][cls]
+            return self._instances[cls]
         except KeyError:
             pass
 
         if issubclass(cls, Stub):
             instance = self._clients[cls]
         else:
-            instance = cls(venom=self)
+            raise RuntimeError
+            # self._instances[cls] = instance = cls(venom=self)
 
-        if context:
-            if context in self._instances:
-                self._instances[context][cls] = instance
-            else:
-                self._instances[context] = {cls: instance}
         return instance
 
     def iter_methods(self) -> Iterable[Method]:
-        for service in self._public_services.values():
-            for method in service.__methods__.values():
+        for instance in self._instances.values():
+            for method in instance.__methods__.values():
                 yield method
 
     def get_request_context(self) -> RequestContext:
@@ -107,9 +103,8 @@ class Venom(object):
 
     async def _invoke(self, method: Method, request: 'venom.Message'):
         with self._request_context_cls(self):
-            instance = self.get_instance(method.service)
             self.before_invoke.send(self, method=method, request=request)
-            return await method.invoke(instance, request)
+            return await method.invoke(request)
 
     async def invoke(self, method: Method, request: 'venom.Message', loop: 'asyncio.AbstractEventLoop' = None):
         if loop is None:
@@ -117,5 +112,5 @@ class Venom(object):
         return await loop.create_task(self._invoke(method, request))
 
     def __iter__(self) -> Iterable[Type[Service]]:
-        return iter(self._public_services.values())
+        return iter(self._instances.values())
 

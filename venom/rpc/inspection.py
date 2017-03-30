@@ -15,7 +15,7 @@ from venom.util import upper_camelcase
 MessageFunction = NamedTuple('MessageFunction', [
     ('request', Type[Message]),
     ('response', Type[Message]),
-    ('invokable', Callable[[Any, Message, Optional['asyncio.BaseEventLoop']], Message])  # TODO update to typing.Coroutine in Python 3.6
+    ('invokable', Callable[[Any, Message, Optional['asyncio.AbstractEventLoop']], Message])  # TODO update to typing.Coroutine in Python 3.6
 ])
 
 
@@ -241,14 +241,14 @@ def magic_normalize(func: Callable[..., Any],
 
     # TODO (optimization) do not wrap what does not need to be wrapped
     if additional_args:
-        async def invokable(inst, req: Message, loop: 'asyncio.BaseEventLoop' = None) -> Message:
+        async def invokable(inst, req: Message, loop: 'asyncio.AbstractEventLoop' = None) -> Message:
             return wrap_response(await func(inst,
                                             *(await asyncio.gather(*[arg.resolve(inst, req)
                                                                      for arg in additional_args], loop=loop)),
                                             *wrap_args(req),
                                             **wrap_kwargs(req)))
     else:
-        async def invokable(inst, req: Message, loop: 'asyncio.BaseEventLoop' = None) -> Message:
+        async def invokable(inst, req: Message, loop: 'asyncio.AbstractEventLoop' = None) -> Message:
             return wrap_response(await func(inst, *wrap_args(req), **wrap_kwargs(req)))
 
     return MessageFunction(request, response, wraps(func)(invokable))

@@ -49,6 +49,7 @@ class AioHTTPEndToEndTestCase(AioHTTPTestCase):
 
         with venom.get_request_context():
             greeter = venom.get_instance(GreeterStub)
+            print('greeter:', greeter, greeter.greet)
             self.assertEqual(HelloResponse('Hello, Alice!'), await greeter.greet(HelloRequest('Alice')))
 
     @unittest_run_loop

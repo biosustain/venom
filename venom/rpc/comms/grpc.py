@@ -93,7 +93,7 @@ class Client(AbstractClient):
                      request: 'venom.message.Message',
                      *,
                      context: 'venom.rpc.RequestContext' = None,
-                     loop: asyncio.BaseEventLoop = None,
+                     loop: asyncio.AbstractEventLoop = None,
                      timeout: int = None):
         if loop is None:
             loop = asyncio.get_event_loop()
