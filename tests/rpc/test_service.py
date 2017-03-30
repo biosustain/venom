@@ -36,10 +36,10 @@ class ServiceTestCase(AioTestCase):
         venom = Venom()
         venom.add(SnakeService)
 
-        self.assertEqual(await venom.invoke(SnakeService().sound, Empty()), StringValue('silence'))
+        self.assertEqual(await venom.invoke(SnakeService.sound, Empty()), StringValue('silence'))
 
         @Venom.before_invoke.connect_via(venom, weak=True)
         def set_context_sound(sender, **kwargs):
             RequestContext.current()['sound'] = 'hiss'
 
-        self.assertEqual(await venom.invoke(SnakeService().sound, Empty()), StringValue('hiss'))
+        self.assertEqual(await venom.invoke(SnakeService.sound, Empty()), StringValue('hiss'))

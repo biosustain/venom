@@ -22,11 +22,10 @@ class StubTestCase(AioTestCase):
         self.assertEqual(set(PetStub.__methods__.keys()), {'pet'})
         self.assertIsInstance(PetStub.__methods__['pet'], MethodDescriptor)
 
-        stub = PetStub()
-        self.assertIsInstance(stub.pet, Method)
-        self.assertEqual(stub.pet.request, Empty)
-        self.assertEqual(stub.pet.response, Empty)
-        self.assertEqual(stub.pet.name, 'pet')
+        self.assertIsInstance(PetStub.pet, Method)
+        self.assertEqual(PetStub.pet.request, Empty)
+        self.assertEqual(PetStub.pet.response, Empty)
+        self.assertEqual(PetStub.pet.name, 'pet')
 
     def test_stub_rpc_require_auto(self):
         with self.assertRaises(RuntimeError):
@@ -42,14 +41,14 @@ class StubTestCase(AioTestCase):
             def greet(self, name: str, shout: bool = False) -> str:
                 raise NotImplementedError
 
-        self.assertEqual(GreeterStub().greet.request.__meta__.name, 'GreetRequest')
-        self.assertEqual(tuple(fields(GreeterStub().greet.request)), (
+        self.assertEqual(GreeterStub.greet.request.__meta__.name, 'GreetRequest')
+        self.assertEqual(tuple(fields(GreeterStub.greet.request)), (
             String(name='name'),
             Bool(name='shout'),
         ))
 
-        self.assertEqual(GreeterStub().greet.response, StringValue)
-        self.assertEqual(GreeterStub().greet.name, 'greet')
+        self.assertEqual(GreeterStub.greet.response, StringValue)
+        self.assertEqual(GreeterStub.greet.name, 'greet')
 
     def test_stub_rpc_request_repeat_auto(self):
         class GreeterStub(Stub):
@@ -57,14 +56,13 @@ class StubTestCase(AioTestCase):
             def greet_many(self, names: List[str]) -> str:
                 raise NotImplementedError
 
-        stub = GreeterStub()
-        self.assertEqual(stub.greet_many.request.__meta__.name, 'GreetManyRequest')
-        self.assertEqual(tuple(fields(stub.greet_many.request)), (
+        self.assertEqual(GreeterStub.greet_many.request.__meta__.name, 'GreetManyRequest')
+        self.assertEqual(tuple(fields(GreeterStub.greet_many.request)), (
             Repeat(String(), name='names'),
         ))
 
-        self.assertEqual(stub.greet_many.response, StringValue)
-        self.assertEqual(stub.greet_many.name, 'greet_many')
+        self.assertEqual(GreeterStub.greet_many.response, StringValue)
+        self.assertEqual(GreeterStub.greet_many.name, 'greet_many')
 
     @SkipTest
     def test_stub_rpc_response_repeat_auto(self):

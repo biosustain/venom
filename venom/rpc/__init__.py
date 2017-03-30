@@ -103,8 +103,9 @@ class Venom(object):
 
     async def _invoke(self, method: Method, request: 'venom.Message'):
         with self._request_context_cls(self):
+            instance = self.get_instance(method.service)
             self.before_invoke.send(self, method=method, request=request)
-            return await method.invoke(request)
+            return await method.invoke(instance, request)
 
     async def invoke(self, method: Method, request: 'venom.Message', loop: 'asyncio.AbstractEventLoop' = None):
         if loop is None:

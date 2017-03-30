@@ -21,7 +21,7 @@ class ClientMethod(Method[S, Req, Res]):
                          **stub_method.options)
         self.client = client
 
-    async def invoke(self, request: Req, loop: 'asyncio.AbstractEventLoop' = None) -> Res:
+    async def invoke(self, instance, request: Req, loop: 'asyncio.AbstractEventLoop' = None) -> Res:
         return await self.client.invoke(self, request, loop=loop)
 
 
@@ -35,7 +35,7 @@ class AbstractClient(ABC, Generic[S]):
         for name, stub_method in stub.__methods__.items():
             method = self.client_method_cls(self, stub_method)
             # self.__methods__[name] = method
-            setattr(self, name, method)
+            setattr(self, name, method.__get__(stub))
 
         if protocol_factory is None:
             protocol_factory = JSON

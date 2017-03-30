@@ -64,6 +64,12 @@ class MethodDescriptor(Generic[Req, Res], metaclass=ABCMeta):
     def __set_name__(self, owner: Any, name: str):
         self._attr_name = name
 
+    @overload
+    def __get__(self, instance: None, owner: Type[Service] = None) -> 'MethodDescriptor[Req, Res]': pass
+
+    @overload
+    def __get__(self, instance: Service, owner: Type[Service] = None) -> 'Callable[[Any, Req], Awaitable[Res]]': pass
+
     def __get__(self, instance, owner):
         if self._attr_name:
             from .stub import Stub
@@ -76,6 +82,8 @@ class MethodDescriptor(Generic[Req, Res], metaclass=ABCMeta):
                 setattr(instance, self._attr_name, method)
             else:
                 return self
+            if instance:
+                return method.__get__(instance, owner)
             return method
         return self
 
@@ -103,12 +111,12 @@ class MethodDescriptor(Generic[Req, Res], metaclass=ABCMeta):
             return 200  # OK
         return self.http_status
 
-    def prepare(self, service: Service, name: str) -> 'Method':
+    def prepare(self, service: Type[Service], name: str) -> 'Method':
         return Method(self.name or name,
                       self.request or Empty,
                       self.response or Empty,
-                      type(service),
-                      http_path=self._get_http_path(type(service), self.name or name),
+                      service,
+                      http_path=self._get_http_path(service, self.name or name),
                       http_method=self._get_http_method(),
                       http_status=self._get_http_status(self.response or Empty),
                       **self.options)
@@ -175,26 +183,20 @@ class Method(Generic[S, Req, Res], MethodDescriptor[Req, Res]):
         return locations
 
     # TODO Error handling. Only errors that are venom.exceptions.Error instances should be raised
-    async def invoke(self, request: Req, loop: 'asyncio.AbstractEventLoop' = None) -> Res:
+    async def invoke(self, instance: S, request: Req, loop: 'asyncio.AbstractEventLoop' = None) -> Res:
         raise NotImplemented_()
 
-    # @overload
-    # def __get__(self, instance: None, owner: Type[S] = None) -> 'MethodDescriptor[Req, Res]': pass
-    #
-    # @overload
-    # def __get__(self, instance: S, owner: Type[S] = None) -> 'MethodType': pass
-    #
-    # def __get__(self, instance, owner=None):
-    #     if instance is None:
-    #         return self
-    #     else:
-    #         return MethodType(self.invoke, instance)
-    #
-    # def __set__(self, instance, value):
-    #     raise AttributeError
+    @overload
+    def __get__(self, instance: None, owner: Type[S] = None) -> 'MethodDescriptor[Req, Res]': pass
 
-    def __call__(self, request: Req):
-        return self.invoke(request)
+    @overload
+    def __get__(self, instance: S, owner: Type[S] = None) -> 'Callable[[S, Req], Awaitable[Res]]': pass
+
+    def __get__(self, instance, owner=None):
+        if instance is None:
+            return self
+        else:
+            return MethodType(self.invoke, instance)
 
     def __repr__(self):
         return f'<{self.__class__.__name__} [{self.service.__meta__.name}.{self.name}]>'
@@ -223,7 +225,7 @@ class ServiceMethodDescriptor(MethodDescriptor[Req, Res]):
         self._func = func
 
     def prepare(self,
-                service: Service,
+                service: Type[Service],
                 name: str,
                 *args: Tuple[Resolver, ...],
                 converters: Sequence[Converter] = ()) -> 'ServiceMethod':
@@ -274,31 +276,18 @@ class ServiceMethodDescriptor(MethodDescriptor[Req, Res]):
                       http_status=self._get_http_status(magic_func.response),
                       **self.options)
 
-    # @overload
-    # def __get__(self, instance: None, owner: Type[S]) -> 'MethodDescriptor[Req, Res]': pass
-    #
-    # @overload
-    # def __get__(self, instance: S, owner: Type[S]) -> 'MethodType': pass
-
-    # def __get__(self, instance, owner):
-    #     if instance is None:
-    #         return self
-    #     else:
-    #         return MethodType(self._func, instance)
-
-    def __call__(self, *args, **kwargs):
-        return self._func(*args, **kwargs)
+    # def __call__(self, *args, **kwargs):
+    #     return self._func(*args, **kwargs)
 
 
 class ServiceMethod(Method[S, Req, Res]):
-    instance: S
     implementation: Callable[[S, Req], Awaitable[Res]]
 
     def __init__(self,
                  name: str,
                  request: Type[Req],
                  response: Type[Res],
-                 service: S,
+                 service: Type[S],
                  implementation: Callable[[S, Req], Awaitable[Res]],
                  *,
                  http_path: str = None,
@@ -308,15 +297,14 @@ class ServiceMethod(Method[S, Req, Res]):
         super().__init__(name,
                          request,
                          response,
-                         type(service),
+                         service,
                          http_path=http_path,
                          http_method=http_method,
                          http_status=http_status,
                          **options)
-        self.instance = service
         self.implementation = implementation
 
-    def prepare(self, service: Service, name: str) -> 'ServiceMethod':
+    def prepare(self, service: Type[Service], name: str) -> 'ServiceMethod':
         return ServiceMethod(name,
                              self.request,
                              self.response,
@@ -327,9 +315,9 @@ class ServiceMethod(Method[S, Req, Res]):
                              http_status=self._get_http_status(self.response),
                              **self.options)
 
-    async def invoke(self, request: Message, loop: 'asyncio.AbstractEventLoop' = None):
+    async def invoke(self, instance: S, request: Message, loop: 'asyncio.AbstractEventLoop' = None):
         try:
-            return await self.implementation(self.instance, request, loop=loop)
+            return await self.implementation(instance, request, loop=loop)
         except NotImplementedError:
             raise NotImplemented_()
 

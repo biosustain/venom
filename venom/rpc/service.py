@@ -28,6 +28,9 @@ class ServiceManager(object):
             meta.http_path = f"/{meta.name.lower().replace('_', '-')}"
         return meta
 
+    def prepare_method(self, service: Type['Service'], method: MethodDescriptor, name: str):
+        return method.prepare(service, name)
+
     def register(self, venom: 'venom.Venom') -> None:
         pass
 
@@ -37,15 +40,15 @@ class ServiceMeta(type):
         meta_, meta_changes = meta(bases, members)
         meta_ = meta_.manager.prepare_meta(what, meta_, meta_changes)
         manager = meta_.manager(meta_, meta_changes)
-        methods = {}
+        method_descriptors = {}
 
         for base in bases:
             if isinstance(base, ServiceMeta):
-                methods.update(base.__methods__)
+                method_descriptors.update(base.__method_descriptors__)
 
         for name, member in members.items():
             if isinstance(member, MethodDescriptor):
-                methods[name] = member
+                method_descriptors[name] = member
 
         stub = meta_changes.get('stub')
         if stub:
@@ -54,14 +57,23 @@ class ServiceMeta(type):
 
         members['__manager__'] = manager
         members['__meta__'] = manager.meta
-        members['__methods__'] = methods
+        members['__method_descriptors__'] = method_descriptors
         members['__stub__'] = stub
         cls = super(ServiceMeta, metacls).__new__(metacls, name, bases, members)
 
         if stub:
-            for name, method in stub.__methods__.items():
-                if name not in methods:
-                    methods[name] = method
+            for name, method in stub.__method_descriptors__.items():
+                if name not in method_descriptors:
+                    method_descriptors[name] = method
+
+        cls.__methods__ = methods = {
+            name: manager.prepare_method(cls, method, name)
+            for name, method in method_descriptors.items()
+        }
+
+        for name, method in methods.items():
+            setattr(cls, name, method)
+
         return cls
 
 
@@ -71,6 +83,7 @@ class Service(object, metaclass=ServiceMeta):
     """
     __meta__: ClassVar['venom.util.AttributeDict'] = None
     __manager__: ClassVar[ServiceManager] = None
+    __method_descriptors__: ClassVar[Dict[str, MethodDescriptor]] = None
     __methods__: ClassVar[Dict[str, Method]] = None
     __stub__: ClassVar[Type['Service']] = None
 
@@ -78,13 +91,6 @@ class Service(object, metaclass=ServiceMeta):
 
     def __init__(self, venom: 'venom.rpc.Venom' = None) -> None:
         self.venom = venom
-        self.__methods__ = {
-            name: method.prepare(self, name)
-            for name, method in self.__methods__.items()
-        }
-
-        for name, method in self.__methods__.items():
-            setattr(self, name, method)
 
     class Meta:
         name = None
