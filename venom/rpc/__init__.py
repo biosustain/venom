@@ -7,7 +7,7 @@ from blinker import Signal
 from venom.rpc.context import RequestContext, DictRequestContext
 from venom.rpc.stub import Stub
 from .method import rpc, http, Method
-from .proxy import ServiceProxy
+from .proxy import ServiceProxy, proxy
 from .service import Service
 
 

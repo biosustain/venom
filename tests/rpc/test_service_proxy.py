@@ -5,7 +5,7 @@ from venom.fields import Integer
 from venom.message import Message, Empty
 from venom.rpc import RequestContext
 from venom.rpc import Service, Venom, rpc
-from venom.rpc import ServiceProxy
+from venom.rpc import ServiceProxy, proxy
 from venom.rpc.test_utils import MockVenom, AioTestCase, mock_instance
 
 
@@ -23,7 +23,7 @@ class ServiceProxyTestCase(AioTestCase):
                 return 'Bermuda'
 
         class ConspiracyService(Service):
-            location = ServiceProxy(LocationService)
+            location = proxy(LocationService)
 
             @rpc
             async def suspicious_area(self) -> str:

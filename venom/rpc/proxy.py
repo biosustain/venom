@@ -11,3 +11,7 @@ class ServiceProxy(Generic[S]):
 
     def __get__(self, service: Service, owner: Any = None) -> S:
         return cast(S, service.venom.get_instance(self.reference))
+
+
+def proxy(service: Type[S]) -> S:
+    return cast(S, ServiceProxy(service))
