@@ -48,4 +48,6 @@ def schema(name: str, **kwargs):
     :param kwargs: 
     :return: 
     """
-    raise NotImplementedError
+    def decorator(func):
+        return func
+    return decorator
