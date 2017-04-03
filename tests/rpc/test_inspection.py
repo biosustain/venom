@@ -1,5 +1,5 @@
 from collections import namedtuple
-from typing import List, Dict
+from typing import List, Dict, NewType
 from unittest import SkipTest
 
 from venom import Empty, Message
@@ -75,6 +75,17 @@ class InspectionTestCase(AioTestCase):
 
             inspect = magic_normalize(func, converters=[StringValueConverter()])
 
+    async def test_new_type_return_value(self):
+        MyInt = NewType('MyInt', int)
+
+        def func(self) -> MyInt:
+            return 42
+
+        inspect = magic_normalize(func, converters=[Int64ValueConverter(), Int32ValueConverter()])
+        self.assertEqual(inspect.response, IntegerValue)
+        self.assertEqual(inspect.request, Empty)
+        self.assertEqual(await inspect.invokable(None, Empty()), IntegerValue(42))
+
     @SkipTest
     def test_magic_map_return_value(self):
         def func(self) -> Dict[str, int]:
@@ -84,6 +95,17 @@ class InspectionTestCase(AioTestCase):
     def test_magic_repeat_return_value(self):
         def func(self) -> List[int]:
             return [1, 2, 3]
+
+    async def test_magic_new_type_request_message(self):
+        MyInt = NewType('MyInt', int)
+
+        def func(self, value: MyInt) -> IntegerValue:
+            return IntegerValue(value)
+
+        inspect = magic_normalize(func, request=IntegerValue)
+        self.assertEqual(inspect.response, IntegerValue)
+        self.assertEqual(inspect.request, IntegerValue)
+        self.assertEqual(await inspect.invokable(None, IntegerValue(42)), IntegerValue(42))
 
     async def test_magic_request_message(self):
         def func(self, request: IntegerValue) -> IntegerValue:

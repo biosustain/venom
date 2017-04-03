@@ -41,6 +41,7 @@ def create_field_from_type(type_, converters: Sequence[Converter] = (), default:
             return ConverterField(converter)
 
     if issubclass(type_, List):
+        # FIXME List[List[X]] must not become Repeat(Repeat(X))
         return Repeat(create_field_from_type(type_.__args__[0]))
 
     raise NotImplementedError(f"Unable to generate field for {type_}")
@@ -83,44 +84,48 @@ def magic_normalize(func: Callable[..., Any],
 
     if len(func_parameters):
         name, param = func_parameters[0]
-        type_ = func_type_hints.get(name, Any)
+        param_type = func_type_hints.get(name, Any)
 
         unpack_request: Union[bool, Tuple[str, ...]] = False
 
-        if issubclass(type_, Message) and name == 'request':
+        if issubclass(param_type, Message) and name == 'request':
             # func(self, request: MessageType, ...)
             if request is None:
-                request = type_
-            elif request != type_ and 'request' not in field_names(request):
+                request = param_type
+            elif request != param_type and 'request' not in field_names(request):
                 raise RuntimeError(f"Bad argument in {func}: "
-                                   f"'{name}' should be {request}, but got {type_}")
+                                   f"'{name}' should be {request}, but got {param_type}")
 
             for name, param in func_parameters[1:]:
                 if param.default is Parameter.empty:
                     raise RuntimeError(f"Unexpected required argument in {func}: '{name}'")
         elif request is not None and name == 'request':
             for converter in converters:
-                if converter.wire == request and converter.python == type_:
+                if converter.wire == request and converter.python == param_type:
                     request_converter = converter
                     break
 
             if not request_converter:
                 raise RuntimeError(f"Unable to coerce request message to python format: "
-                                   f"'{type_}' in {func}")
+                                   f"'{param_type}' in {func}")
         else:  # func(self, arg: ?, ...)
             required_params, remaining_params = {}, {}
             for name, param in func_parameters:
 
+                param_type = func_type_hints.get(name, Any)
+                if hasattr(param_type, '__supertype__'):  # handles NewType
+                    param_type = param_type.__supertype__
+
                 if param.default is Parameter.empty:
-                    required_params[name] = func_type_hints.get(name, Any)
+                    required_params[name] = param_type
                 else:
-                    remaining_params[name] = (func_type_hints.get(name, Any), param.default)
+                    remaining_params[name] = (param_type, param.default)
 
             if request:  # unpack from request message
                 request_fields = request.__fields__
                 message_params = set()
 
-                for name, type_ in required_params.items():
+                for name, param_type in required_params.items():
                     try:
                         field = request_fields[name]
                     except KeyError:
@@ -129,20 +134,20 @@ def magic_normalize(func: Callable[..., Any],
 
                     field_type = get_field_type(field)
 
-                    if type_ not in (Any, field_type):
+                    if param_type not in (Any, field_type):
                         raise RuntimeError(f"Bad argument in {func}: "
-                                           f"'{name}' should be {field_type}, but got {type_}")
+                                           f"'{name}' should be {field_type}, but got {param_type}")
 
                     message_params.add((name, None))
 
-                for name, (type_, default) in remaining_params.items():
+                for name, (param_type, default) in remaining_params.items():
                     if name in request_fields:
                         field = request_fields[name]
                         field_type = get_field_type(field)
 
-                        if type_ not in (Any, field_type):
+                        if param_type not in (Any, field_type):
                             raise RuntimeError(f"Bad argument in {func}: "
-                                               f"'{name}' should be {field_type}, but got {type_}")
+                                               f"'{name}' should be {field_type}, but got {param_type}")
 
                         message_params.add((name, default))
 
@@ -159,12 +164,14 @@ def magic_normalize(func: Callable[..., Any],
 
                 message_fields = {}
                 for name, param in func_parameters:
-                    type_ = func_type_hints.get(name, Any)
+                    param_type = func_type_hints.get(name, Any)
+                    if hasattr(param_type, '__supertype__'):  # handles NewType
+                        param_type = param_type.__supertype__
 
                     if param.default is Parameter.empty:
-                        message_fields[name] = create_field_from_type(type_, converters=converters)
+                        message_fields[name] = create_field_from_type(param_type, converters=converters)
                     else:
-                        message_fields[name] = create_field_from_type(type_,
+                        message_fields[name] = create_field_from_type(param_type,
                                                                       converters=converters,
                                                                       default=param.default)
 
@@ -180,6 +187,9 @@ def magic_normalize(func: Callable[..., Any],
     response_converter = None
 
     if response is None:
+        if hasattr(return_type, '__supertype__'):  # handles NewType
+            return_type = return_type.__supertype__
+
         if return_type in (Any, None, type(None)):  # None for Python 3.5 compatibility
             # TODO warn if Any: missing return type annotation (will discard return value)
             response = Empty
