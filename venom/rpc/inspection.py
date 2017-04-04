@@ -1,7 +1,7 @@
 import asyncio
 from functools import wraps
 from inspect import signature, Parameter
-from typing import Callable, Any, Sequence, get_type_hints, Type, NamedTuple, Optional, List, Dict
+from typing import Callable, Any, Sequence, get_type_hints, Type, NamedTuple, Optional, List, Dict, TypeVar
 from typing import Tuple
 from typing import Union
 from venom.fields import RepeatField, MapField, Field, ConverterField, Repeat
@@ -47,6 +47,35 @@ def create_field_from_type(type_, converters: Sequence[Converter] = (), default:
     raise NotImplementedError(f"Unable to generate field for {type_}")
 
 
+def dynamic(name: str, expression: Union[type, Callable[[Type[Any]], type]]) \
+        -> Callable[[Callable[..., Any]], Callable[..., Any]]:  # TODO type annotations for pass-through decorator
+    """
+    
+    :param name: 
+    :param expression: a subclass of ``type`` or a callable in the format ``(owner: Type[Any]) -> type``.
+    :return: 
+    """
+    def decorator(func):
+        if not hasattr(func, '__dynamic__'):
+            func.__dynamic__ = {name: expression}
+        else:
+            func.__dynamic__[name] = expression
+        return func
+    return decorator
+
+
+def _get_func_type_annotations(func: Callable[..., Any], owner: type = None) -> Dict[str, type]:
+    annotations = dict(get_type_hints(func))
+    dynamic_annotations = getattr(func, '__dynamic__', {})
+
+    for name, expression in dynamic_annotations.items():
+        if type(expression) == type:
+            annotations[name] = expression
+        elif callable(expression):
+            annotations[name] = expression(owner)
+    return annotations
+
+
 # TODO name arg for use with auto-generation
 def magic_normalize(func: Callable[..., Any],
                     func_name: str = None,
@@ -54,6 +83,7 @@ def magic_normalize(func: Callable[..., Any],
                     response: Type[Message] = None,
                     converters: Sequence[Union[Converter, Type[Converter]]] = (),
                     additional_args: Sequence[Union[Resolver, Type[Resolver]]] = (),
+                    owner: type = None,
                     auto_generate_request: bool = False) -> MessageFunction:
     """
 
@@ -61,6 +91,7 @@ def magic_normalize(func: Callable[..., Any],
     :param request:
     :param response:
     :param converters:
+    :param owner: 
     :param additional_args: additional arguments that are resolved during invocation.
     :return:
     """
@@ -73,7 +104,8 @@ def magic_normalize(func: Callable[..., Any],
     converters = [converter() if isinstance(converter, type) else converter for converter in converters]
 
     func_signature = signature(func)
-    func_type_hints = get_type_hints(func)
+    func_type_hints = _get_func_type_annotations(func, owner)
+
 
     if len(func_signature.parameters) == 0:
         # no "self" parameter: func()
@@ -88,7 +120,8 @@ def magic_normalize(func: Callable[..., Any],
 
         unpack_request: Union[bool, Tuple[str, ...]] = False
 
-        if issubclass(param_type, Message) and name == 'request':
+        # TODO param_type != Any is a workaround for https://github.com/python/typing/issues/345
+        if param_type != Any and issubclass(param_type, Message) and name == 'request':
             # func(self, request: MessageType, ...)
             if request is None:
                 request = param_type

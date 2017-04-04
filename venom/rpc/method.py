@@ -245,6 +245,7 @@ class ServiceMethodDescriptor(MethodDescriptor[Req, Res]):
                                      func_name=name,
                                      request=request,
                                      response=response,
+                                     owner=service,
                                      additional_args=args,
                                      converters=tuple(converters) + tuple(service.__meta__.converters),
                                      auto_generate_request=self.options.get('auto', False))
