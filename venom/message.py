@@ -46,7 +46,7 @@ class MessageMeta(ABCMeta):
 class Message(MutableMapping, metaclass=MessageMeta):
     __slots__ = ('_values',)   # TODO slot message fields directly.
     # TODO change to tuple (FieldDescriptor would need FieldDescriptor.attribute attribute.)
-    __fields__: ClassVar[Tuple[FieldDescriptor]] = None
+    __fields__: ClassVar[Dict[str, FieldDescriptor]] = None
     __meta__: ClassVar[Dict[str, Any]] = None
 
     class Meta:
