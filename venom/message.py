@@ -36,9 +36,9 @@ class MessageMeta(ABCMeta):
 
         for name, member in members.items():
             if isinstance(member, FieldDescriptor):
-                cls.__fields__[name] = member
                 if member.name is None:
                     member.name = name
+                cls.__fields__[member.name] = member
             elif isinstance(member, OneOf):
                 cls.__meta__.one_of_groups += (name, member.choices)
 
@@ -47,6 +47,7 @@ class MessageMeta(ABCMeta):
 
 class Message(MutableMapping, metaclass=MessageMeta):
     __slots__ = ('_values',)   # TODO slot message fields directly.
+    # TODO change to tuple (FieldDescriptor would need FieldDescriptor.attribute attribute.)
     __fields__: ClassVar[Dict[str, FieldDescriptor]] = None
     __meta__: ClassVar[Dict[str, Any]] = None
 
@@ -106,11 +107,11 @@ class Message(MutableMapping, metaclass=MessageMeta):
 
 
 def fields(message: Type[Message]) -> Iterable[FieldDescriptor]:
-    return message.__fields__.values()
+    return tuple(message.__fields__.values())
 
 
 def field_names(message: Type[Message]) -> Iterable[FieldDescriptor]:
-    return message.__fields__.keys()
+    return tuple(field.name for field in message.__fields__.values())
 
 
 M = TypeVar('M')

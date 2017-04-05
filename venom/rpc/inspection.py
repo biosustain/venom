@@ -40,7 +40,8 @@ def create_field_from_type(type_, converters: Sequence[Converter] = (), default:
         if converter.python == type_:
             return ConverterField(converter)
 
-    if issubclass(type_, List):
+    # TODO type_ != Any is a workaround for https://github.com/python/typing/issues/345
+    if type_ != Any and issubclass(type_, List):
         # FIXME List[List[X]] must not become Repeat(Repeat(X))
         return Repeat(create_field_from_type(type_.__args__[0]))
 
@@ -81,6 +82,7 @@ def magic_normalize(func: Callable[..., Any],
                     func_name: str = None,
                     request: Type[Message] = None,
                     response: Type[Message] = None,
+                    *,
                     converters: Sequence[Union[Converter, Type[Converter]]] = (),
                     additional_args: Sequence[Union[Resolver, Type[Resolver]]] = (),
                     owner: type = None,
