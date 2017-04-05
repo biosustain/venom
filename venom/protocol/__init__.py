@@ -93,8 +93,8 @@ class JSON(DictProtocol):
     def __init__(self, fmt: Type[Message], field_names_: Set[str] = None):
         super().__init__(fmt, field_names_)
         # TODO camelCase conversion
-        self.field_encoders = {field.name: self._field_encoder(field) for field in self._fields}
-        self.field_decoders = {field.name: self._field_decoder(field) for field in self._fields}
+        self.field_encoders = {(field.name, field.json_name): self._field_encoder(field) for field in self._fields}
+        self.field_decoders = {(field.name, field.json_name): self._field_decoder(field) for field in self._fields}
 
     T = TypeVar('T')
 
@@ -153,9 +153,9 @@ class JSON(DictProtocol):
 
     def encode(self, message: Message):
         obj = {}
-        for name, encode in self.field_encoders.items():
+        for (name, json_name), encode in self.field_encoders.items():
             try:
-                obj[name] = encode(message[name])
+                obj[json_name] = encode(message[name])
             except KeyError:
                 pass
         return obj
@@ -167,12 +167,12 @@ class JSON(DictProtocol):
         if message is None:
             message = self._format()
 
-        for name, decode in self.field_decoders.items():
-            if name in instance:
+        for (name, json_name), decode in self.field_decoders.items():
+            if json_name in instance:
                 try:
-                    message[name] = decode(instance[name])
+                    message[name] = decode(instance[json_name])
                 except ValidationError as e:
-                    e.path.insert(0, name)
+                    e.path.insert(0, json_name)
                     raise e
         return message
 

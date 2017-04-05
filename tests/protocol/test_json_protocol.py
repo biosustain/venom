@@ -30,20 +30,17 @@ class JSONProtocolTestCase(TestCase):
         self.assertEqual(e.exception.description, "'bad' is not of type 'object'")
         self.assertEqual(e.exception.path, [])
 
-    @SkipTest
-    def test_encode_message_field_attribute(self):
-        # NOTE: removed support for field attributes.
-
+    def test_encode_message_json_name(self):
         class Pet(Message):
-            size = Number(attribute='weight')
+            size = Number(json_name='$size')
 
         protocol = JSON(Pet)
 
         pet = Pet()
         pet.size = 2.5
-        self.assertEqual(protocol.encode(pet), {'weight': 2.5})
-        self.assertEqual(protocol.decode({'weight': 2.5}), Pet(2.5))
-
+        self.assertEqual(protocol.encode(pet), {'$size': 2.5})
+        self.assertEqual(protocol.decode({'$size': 2.5}), Pet(size=2.5))
+        
     def test_encode_repeat_field(self):
         class Pet(Message):
             sounds = Repeat(String())
@@ -82,16 +79,16 @@ class JSONProtocolTestCase(TestCase):
 
         # FIXME With custom encoding/decoding for values this won't happen.
         with self.assertRaises(ValidationError) as e:
-            protocol.decode({'string_value': {'value': None}})
+            print(protocol.decode({'stringValue': {'value': None}}))
 
         self.assertEqual(e.exception.description, "{'value': None} is not of type 'str'")
-        self.assertEqual(e.exception.path, ['string_value'])
+        self.assertEqual(e.exception.path, ['stringValue'])
 
         with self.assertRaises(ValidationError) as e:
-            protocol.decode({'parent': {'string_value': 42}})
+            protocol.decode({'parent': {'stringValue': 42}})
 
         self.assertEqual(e.exception.description, "42 is not of type 'str'")
-        self.assertEqual(e.exception.path, ['parent', 'string_value'])
+        self.assertEqual(e.exception.path, ['parent', 'stringValue'])
 
     def test_unpack_invalid_json(self):
         class Pet(Message):

@@ -4,13 +4,18 @@ from typing import Iterable, TypeVar, Generic, Any, Tuple, Union, Type
 
 import collections
 
-from venom.util import cached_property, AttributeDict
+from venom.util import cached_property, AttributeDict, camelcase
 
 T = TypeVar('T', bool, int, float, str, bytes, 'venom.message.Message')
 
 
 class FieldDescriptor(Generic[T], metaclass=ABCMeta):
-    name: str = None
+    _name: str = None
+    _json_name: str = None
+
+    def __init__(self, name: str = None, *, json_name: str = None):
+        self._name = name
+        self._json_name = json_name
 
     def __get__(self, instance: 'venom.message.Message', owner):
         if instance is None:
@@ -22,6 +27,19 @@ class FieldDescriptor(Generic[T], metaclass=ABCMeta):
 
     def default(self):
         return None
+
+    def __set_name__(self, owner, name):
+        self._name = name
+
+    @property
+    def json_name(self):
+        if self._json_name is None:
+            return camelcase(self.name)
+        return self._json_name
+
+    @property
+    def name(self):
+        return self._name
 
     # TODO wait on https://github.com/python/mypy/issues/244
     def __set__(self, instance: 'venom.message.Message', value: T):
@@ -35,11 +53,13 @@ class Field(Generic[T], FieldDescriptor):
                  type_: Union[Type[T], str],
                  default: Any = None,
                  name: str = None,
+                 *,
+                 json_name: str = None,
                  **options) -> None:
+        super(Field, self).__init__(name, json_name=json_name)
         self._type = type_
         self._default = default
         self.options = AttributeDict(options)
-        self.name = name
 
     def default(self):
         if self._default is None:
@@ -163,9 +183,9 @@ class _RepeatValueProxy(collections.MutableSequence):
 
 
 class RepeatField(Generic[CT], FieldDescriptor):
-    def __init__(self, items: Type[CT], name: str = None) -> None:
+    def __init__(self, items: Type[CT], name: str = None, *, json_name: str = None) -> None:
+        super().__init__(name, json_name=json_name)
         self.items = items
-        self.name = name
 
     def __get__(self, instance: 'venom.message.Message', owner):
         if instance is None:
@@ -179,11 +199,10 @@ class RepeatField(Generic[CT], FieldDescriptor):
 
 
 class MapField(Generic[CT], FieldDescriptor):
-    def __init__(self, values: Type[CT], name: str = None) -> None:
-        super().__init__()
+    def __init__(self, values: Type[CT], name: str = None, *, json_name: str = None) -> None:
+        super().__init__(name, json_name=json_name)
         self.keys = String()
         self.values = values
-        self.name = name
 
 
 def Repeat(items: Union[Field, MapField, RepeatField, type, str], **kwargs) -> RepeatField:

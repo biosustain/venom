@@ -37,6 +37,10 @@ def upper_camelcase(s: str) -> str:
     return s.title().replace('_', '')
 
 
+def camelcase(s):
+    return s[0].lower() + s.title().replace('_', '')[1:] if s else s
+
+
 class cached_property(object):
     """
     Descriptor (non-data) for building an attribute on-demand on first use.
