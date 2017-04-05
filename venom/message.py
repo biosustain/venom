@@ -36,9 +36,9 @@ class MessageMeta(ABCMeta):
 
         for name, member in members.items():
             if isinstance(member, FieldDescriptor):
+                cls.__fields__[name] = member
                 if member.name is None:
                     member.name = name
-                cls.__fields__[member.name] = member
             elif isinstance(member, OneOf):
                 cls.__meta__.one_of_groups += (name, member.choices)
 
@@ -59,12 +59,12 @@ class Message(MutableMapping, metaclass=MessageMeta):
     def __init__(self, *args, **kwargs):
         if args:
             self._values = {}
-            for value, key in zip(args, self.__fields__.keys()):
-                self[key] = value
+            for value, field in zip(args, self.__fields__.values()):
+                self[field.name] = value
             for key, value in kwargs.items():
-                self[key] = value
+                self[self.__fields__[key].name] = value
         else:
-            self._values = {key: value for key, value in kwargs.items() if value is not None}
+            self._values = {self.__fields__[key].name: value for key, value in kwargs.items() if value is not None}
 
     def get(self, key, default=None):
         try:
