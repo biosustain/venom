@@ -45,6 +45,10 @@ def create_field_from_type(type_, converters: Sequence[Converter] = (), default:
         # FIXME List[List[X]] must not become Repeat(Repeat(X))
         return Repeat(create_field_from_type(type_.__args__[0]))
 
+    # TODO type_ != Any is a workaround for https://github.com/python/typing/issues/345
+    if type_ != Any and issubclass(type_, Message):
+        return Field(type_)
+
     raise NotImplementedError(f"Unable to generate field for {type_}")
 
 
