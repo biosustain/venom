@@ -1,7 +1,7 @@
 from abc import ABCMeta
 from collections import MutableMapping
 from collections import OrderedDict
-from typing import Any, Dict, Type, Iterable, TypeVar, Tuple, Set, ClassVar
+from typing import Any, Dict, Type, Iterable, TypeVar, Tuple, Set, ClassVar, cast
 
 from venom.fields import FieldDescriptor
 from venom.util import meta
@@ -154,5 +154,5 @@ class Empty(Message):
     pass
 
 
-def message_factory(name: str, fields: Dict[str, FieldDescriptor]) -> Type[Message]:
-    return type(name, (Message,), fields)
+def message_factory(name: str, fields: Dict[str, FieldDescriptor], *, super_message: Type[_M] = Message) -> Type[_M]:
+    return cast(Type[_M], type(name, (super_message,), fields))
