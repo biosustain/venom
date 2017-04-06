@@ -13,6 +13,6 @@ class HelloResponse(Message):
 
 
 class HelloStub(Stub):
-    @http.POST('/greet/{name}')
+    @http.POST('./greet/{name}')
     def say_hello(self, request: HelloRequest) -> HelloResponse:
         raise NotImplementedError
