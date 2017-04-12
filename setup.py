@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='venom',
-    version='1.0.0a4',
+    version='1.0.0a5',
     packages=find_packages(exclude=['*tests*']),
     url='https://github.com/biosustain/venom',
     license='MIT',
