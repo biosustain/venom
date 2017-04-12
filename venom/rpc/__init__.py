@@ -25,12 +25,13 @@ class Venom(object):
     _request_context_cls: Type[RequestContext]
     _instances: Mapping[Service, Union[Service, 'venom.rpc.comms.AbstractClient']]
 
-    def __init__(self, *, request_context_cls: Type[RequestContext] = DictRequestContext):
+    def __init__(self, *, request_context_cls: Type[RequestContext] = DictRequestContext, **options):
         self._request_context_cls = request_context_cls
         self._instances = {}
         self._services = {}
         self._public_services = {}
         self._clients = {}
+        self.options = options
 
     # TODO change signature so that all keyword arguments go to the client_cls on init.
     # TODO add internal: bool = None flag; internal = False makes Stubs publicly available.

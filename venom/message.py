@@ -112,6 +112,10 @@ def field_names(message: Type[Message]) -> Iterable[FieldDescriptor]:
     return tuple(field.name for field in message.__fields__.values())
 
 
+def is_empty(message: Type[Message]) -> bool:
+    return not fields(message)
+
+
 _M = TypeVar('M', bound=Message)
 
 

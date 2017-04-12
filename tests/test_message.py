@@ -1,7 +1,7 @@
 from collections import OrderedDict
 from unittest import TestCase, SkipTest
 
-from venom.fields import String, Integer
+from venom.fields import String, Integer, Repeat
 from venom.message import Message, from_object
 
 

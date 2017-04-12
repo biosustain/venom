@@ -1,6 +1,6 @@
 from abc import ABCMeta
 from importlib import import_module
-from typing import Iterable, TypeVar, Generic, Any, Tuple, Union, Type
+from typing import TypeVar, Generic, Any, Union, Type
 
 import collections
 
@@ -87,6 +87,8 @@ class Field(Generic[T], FieldDescriptor):
                                    self.name,
                                    self._type.__name__ if not isinstance(self._type, str) else repr(self._type))
 
+    def __hash__(self):
+        return hash(repr(self))
 
 P = TypeVar('P')
 
@@ -183,9 +185,10 @@ class _RepeatValueProxy(collections.MutableSequence):
 
 
 class RepeatField(Generic[CT], FieldDescriptor):
-    def __init__(self, items: Type[CT], name: str = None, *, json_name: str = None) -> None:
+    def __init__(self, items: Type[CT], name: str = None, *, json_name: str = None, **options) -> None:
         super().__init__(name, json_name=json_name)
         self.items = items
+        self.options = AttributeDict(options)
 
     def __get__(self, instance: 'venom.message.Message', owner):
         if instance is None:
@@ -195,14 +198,15 @@ class RepeatField(Generic[CT], FieldDescriptor):
     def __eq__(self, other):
         if not isinstance(other, RepeatField):
             return False
-        return self.items == other.items and self.name == other.name
+        return self.items == other.items and self.name == other.name and self.options == other.options
 
 
 class MapField(Generic[CT], FieldDescriptor):
-    def __init__(self, values: Type[CT], name: str = None, *, json_name: str = None) -> None:
+    def __init__(self, values: Type[CT], name: str = None, *, json_name: str = None, **options) -> None:
         super().__init__(name, json_name=json_name)
         self.keys = String()
         self.values = values
+        self.options = AttributeDict(options)
 
 
 def Repeat(items: Union[Field, MapField, RepeatField, type, str], **kwargs) -> RepeatField:

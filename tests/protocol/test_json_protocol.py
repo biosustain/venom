@@ -4,7 +4,7 @@ from unittest import TestCase
 from venom import Message
 from venom.common import StringValue, IntegerValue, BoolValue, NumberValue
 from venom.exceptions import ValidationError
-from venom.fields import String, Number, Field, Repeat
+from venom.fields import String, Number, Field, Repeat, Map
 from venom.protocol import JSON
 
 
@@ -56,6 +56,19 @@ class JSONProtocolTestCase(TestCase):
 
         self.assertEqual(e.exception.description, "'meow, purr' is not of type 'list'")
         self.assertEqual(e.exception.path, ['sounds'])
+
+    def test_encode_decode_map(self):
+        class FooInner(Message):
+            i = String()
+
+        class Foo(Message):
+            m = Map(String())
+            f = Map(Field(FooInner))
+
+        message = Foo(m={'a': 'b'}, f={'k': FooInner(i='in')})
+        protocol = JSON(Foo)
+        self.assertEqual(protocol.encode(message), {'m': {'a': 'b'}, 'f': {'k': {'i': 'in'}}})
+        self.assertEqual(protocol.decode({'m': {'a': 'b'}, 'f': {'k': {'i': 'in'}}}), message)
 
     def test_validation_field_string(self):
         class Foo(Message):
