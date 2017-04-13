@@ -10,7 +10,7 @@ class SchemaMessage(Message):
     properties = Map(Field('venom.rpc.reflect.openapi.SchemaMessage'))
     ref = String(json_name='$ref')
     additional_properties = Field('venom.rpc.reflect.openapi.SchemaMessage')
-    items_ = Field('venom.rpc.reflect.openapi.SchemaMessage', name='items')
+    items = Field('venom.rpc.reflect.openapi.SchemaMessage')
 
 
 class ParameterMessage(Message):
@@ -19,7 +19,7 @@ class ParameterMessage(Message):
     required = Bool()
     name = String()
     type = String()
-    items_ = Field(SchemaMessage, name='items')
+    items = Field(SchemaMessage)
     schema = Field(SchemaMessage)
 
 
