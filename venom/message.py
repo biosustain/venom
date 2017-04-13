@@ -1,5 +1,5 @@
 from abc import ABCMeta
-from collections import MutableMapping
+from collections import MutableMapping, Mapping, ItemsView
 from collections import OrderedDict
 from typing import Any, Dict, Type, Iterable, TypeVar, Tuple, Set, ClassVar, cast
 
@@ -43,7 +43,7 @@ class MessageMeta(ABCMeta):
         return cls
 
 
-class Message(MutableMapping, metaclass=MessageMeta):
+class Message(object, metaclass=MessageMeta):
     __slots__ = ('_values',)   # TODO slot message fields directly.
     # TODO change to tuple (FieldDescriptor would need FieldDescriptor.attribute attribute.)
     __fields__: ClassVar[Dict[str, FieldDescriptor]] = None
@@ -103,6 +103,15 @@ class Message(MutableMapping, metaclass=MessageMeta):
                 parts.append('{}={}'.format(key, repr(self._values[key])))
         return '{}({})'.format(self.__meta__.name, ', '.join(parts))
 
+    def __eq__(self, other):
+        if not isinstance(other, (Message, Mapping)):
+            return NotImplemented
+        return dict(ItemsView(self)) == dict(ItemsView(other))
+
+
+def items(message: Message) -> ItemsView:
+    return ItemsView(message)
+
 
 def fields(message: Type[Message]) -> Iterable[FieldDescriptor]:
     return tuple(message.__fields__.values())
@@ -136,6 +145,10 @@ def from_object(message: Type[_M], obj: Any) -> _M:
             pass
 
     return message(**kwargs)
+
+
+def to_dict(message: Message, dict_cls: type = dict):
+    return dict_cls(items(message))
 
 
 def one_of(*choices):

@@ -29,7 +29,8 @@ class FieldDescriptor(Generic[T], metaclass=ABCMeta):
         return None
 
     def __set_name__(self, owner, name):
-        self._name = name
+        if self._name is None:
+            self._name = name
 
     @property
     def json_name(self):
@@ -83,12 +84,14 @@ class Field(Generic[T], FieldDescriptor):
         return self.type == other.type and self.options == other.options
 
     def __repr__(self):
-        return '<{} {}:{}>'.format(self.__class__.__name__,
-                                   self.name,
-                                   self._type.__name__ if not isinstance(self._type, str) else repr(self._type))
+        type_ = self._type.__qualname__ if not isinstance(self._type, str) else repr(self._type)
+        if self.name:
+            return f'<{self.__class__.__qualname__} {self.name}:{type_}>'
+        return f'<{self.__class__.__qualname__} {type_}>'
 
     def __hash__(self):
         return hash(repr(self))
+
 
 P = TypeVar('P')
 
@@ -199,6 +202,9 @@ class RepeatField(Generic[CT], FieldDescriptor):
         if not isinstance(other, RepeatField):
             return False
         return self.items == other.items and self.name == other.name and self.options == other.options
+
+    def __repr__(self):
+        return '<{} {} {}>'.format(self.__class__.__name__, self.name, str(self.items))
 
 
 class MapField(Generic[CT], FieldDescriptor):

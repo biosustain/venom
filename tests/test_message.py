@@ -2,7 +2,7 @@ from collections import OrderedDict
 from unittest import TestCase, SkipTest
 
 from venom.fields import String, Integer, Repeat
-from venom.message import Message, from_object
+from venom.message import Message, from_object, items
 
 
 class MessageTestCase(TestCase):
@@ -21,7 +21,7 @@ class MessageTestCase(TestCase):
         cat = Pet(sound="meow")
 
         self.assertEqual("meow", cat.sound)
-        self.assertEqual({'sound': 'meow'}, dict(cat))
+        self.assertEqual({'sound': 'meow'}, dict(items(cat)))
 
     def test_message_from_obj(self):
         class Pet(Message):

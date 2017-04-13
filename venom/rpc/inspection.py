@@ -8,7 +8,7 @@ from venom.fields import RepeatField, MapField, Field, ConverterField, Repeat
 
 from venom.converter import Converter
 
-from venom.message import Empty, Message, message_factory, fields, field_names
+from venom.message import Empty, Message, message_factory, fields, field_names, to_dict
 from venom.rpc.resolver import Resolver
 from venom.util import upper_camelcase
 
@@ -264,7 +264,7 @@ def magic_normalize(func: Callable[..., Any],
 
     if unpack_request is True:
         wrap_args = lambda req: ()
-        wrap_kwargs = lambda req: req
+        wrap_kwargs = lambda req: to_dict(req)
     elif unpack_request is False:
         if request_converter:
             wrap_args = lambda req: (request_converter.convert(req),)

@@ -44,3 +44,4 @@ class ConverterFieldsTestCase(TestCase):
 
         message.int_id = '42'
         self.assertEqual(message.get('int_id'), 42)
+
