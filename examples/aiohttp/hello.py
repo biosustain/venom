@@ -4,12 +4,12 @@ from venom.rpc import Stub, http
 
 
 class HelloRequest(Message):
-    name = String()
-    shout = Bool()
+    name: str
+    shout: bool
 
 
 class HelloResponse(Message):
-    message = String()
+    message: str
 
 
 class HelloStub(Stub):

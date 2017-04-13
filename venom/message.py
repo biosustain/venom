@@ -1,9 +1,9 @@
 from abc import ABCMeta
 from collections import MutableMapping, Mapping, ItemsView
 from collections import OrderedDict
-from typing import Any, Dict, Type, Iterable, TypeVar, Tuple, Set, ClassVar, cast
+from typing import Any, Dict, Type, Iterable, TypeVar, Tuple, Set, ClassVar, cast, get_type_hints
 
-from venom.fields import FieldDescriptor
+from venom.fields import FieldDescriptor, Field, Number, Integer, Bytes, String, Bool, create_field_from_type_hint
 from venom.util import meta
 
 
@@ -33,6 +33,14 @@ class MessageMeta(ABCMeta):
 
         if not meta_changes.get('name', None):
             cls.__meta__.name = name
+
+        # FIXME support self-referential type hints
+        # TODO support Repeat[str] and Map[str, type] annotations
+        for name, hint in get_type_hints(cls).items():
+            if not name.startswith('_'):
+                field_descriptor = create_field_from_type_hint(hint, name=name)
+                setattr(cls, name, field_descriptor)
+                members[name] = field_descriptor
 
         for name, member in members.items():
             if isinstance(member, FieldDescriptor):

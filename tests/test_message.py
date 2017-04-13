@@ -1,14 +1,15 @@
 from collections import OrderedDict
+from typing import List
 from unittest import TestCase, SkipTest
 
-from venom.fields import String, Integer, Repeat
+from venom.fields import String, Integer, Repeat, Field
 from venom.message import Message, from_object, items
 
 
 class MessageTestCase(TestCase):
     def test_message_fields(self):
         class Pet(Message):
-            sound = String()
+            sound: str
 
         self.assertEqual({
             'sound': String()
@@ -22,12 +23,6 @@ class MessageTestCase(TestCase):
 
         self.assertEqual("meow", cat.sound)
         self.assertEqual({'sound': 'meow'}, dict(items(cat)))
-
-    def test_message_from_obj(self):
-        class Pet(Message):
-            name = String(attribute="alias")
-
-        self.assertEqual("Foo", from_object(Pet, {"name": "Foo"}).name)
 
     def test_message_ordered_fields(self):
         class Pet(Message):
@@ -43,6 +38,27 @@ class MessageTestCase(TestCase):
             'speed',
             'age'
         ), tuple(Pet.__fields__.keys()))
+
+    def test_message_type_hints(self):
+        class Pet(Message):
+            sounds: List[str]
+            size: float
+            speed: int
+            age: int
+
+        self.assertIsInstance(Pet.__fields__, OrderedDict)
+        self.assertEqual((
+            'sounds',
+            'size',
+            'speed',
+            'age'
+        ), tuple(Pet.__fields__.keys()))
+        self.assertEqual({
+            'sounds': Repeat(String(), name='sounds'),
+            'size': Field(float, name='size'),
+            'speed': Field(int, name='speed'),
+            'age': Field(int, name='age')
+        }, Pet.__fields__)
 
     @SkipTest
     def test_message_one_of(self):

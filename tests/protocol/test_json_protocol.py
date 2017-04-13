@@ -9,15 +9,16 @@ from venom.protocol import JSON
 
 
 class Foo(Message):
-    string = String()
+    string: str
+    # TODO support self-referential hints
     parent = Field('tests.protocol.test_json_protocol.Foo')
-    string_value = Field(StringValue)
+    string_value: StringValue
 
 
 class JSONProtocolTestCase(TestCase):
     def test_encode_message(self):
         class Pet(Message):
-            sound = String()
+            sound: str
 
         protocol = JSON(Pet)
         self.assertEqual(protocol.encode(Pet('hiss!')), {'sound': 'hiss!'})

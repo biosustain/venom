@@ -1,8 +1,9 @@
 from abc import ABCMeta
 from importlib import import_module
-from typing import TypeVar, Generic, Any, Union, Type
+from typing import TypeVar, Generic, Any, Union, Type, Sequence, List
 
 import collections
+
 
 from venom.util import cached_property, AttributeDict, camelcase
 
@@ -226,3 +227,30 @@ def Repeat(items: Union[Field, MapField, RepeatField, type, str], **kwargs) -> R
 def Map(values: Union[Field, MapField, RepeatField, type, str], **kwargs) -> MapField:
     # TODO keys argument.
     return MapField(values, **kwargs)
+
+
+def create_field_from_type_hint(hint,
+                                converters: Sequence['venom.converter.Converter'] = (),
+                                default: Any = None,
+                                name: str = None):
+    if hint in (bool, int, float, str, bytes):
+        return Field(hint, default=default, name=name)
+
+    for converter in converters:
+        if converter.python == hint:
+            return ConverterField(converter, name=name)
+
+    # TODO support 'Repeat' as alias for list.
+    # TODO type_ != Any is a workaround for https://github.com/python/typing/issues/345
+    if hint != Any and issubclass(hint, List):
+        # FIXME List[List[X]] must not become Repeat(Repeat(X))
+        return Repeat(create_field_from_type_hint(hint.__args__[0]), name=name)
+
+    # TODO support Map, Mapping and Dict
+
+    from venom import Message
+    # TODO type_ != Any is a workaround for https://github.com/python/typing/issues/345
+    if hint != Any and issubclass(hint, Message):
+        return Field(hint, name=name)
+
+    raise NotImplementedError(f"Unable to generate field for {hint}")

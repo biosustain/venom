@@ -1,14 +1,14 @@
 import asyncio
 from functools import wraps
 from inspect import signature, Parameter
-from typing import Callable, Any, Sequence, get_type_hints, Type, NamedTuple, Optional, List, Dict, TypeVar
+
+from typing import Callable, Any, Sequence, get_type_hints, Type, NamedTuple, Optional, List, Dict
 from typing import Tuple
 from typing import Union
-from venom.fields import RepeatField, MapField, Field, ConverterField, Repeat
 
 from venom.converter import Converter
-
-from venom.message import Empty, Message, message_factory, fields, field_names, to_dict
+from venom.fields import RepeatField, MapField, Field, create_field_from_type_hint
+from venom.message import Empty, Message, message_factory, field_names, to_dict
 from venom.rpc.resolver import Resolver
 from venom.util import upper_camelcase
 
@@ -30,26 +30,6 @@ def get_field_type(field):
         return field.type
     else:
         raise NotImplementedError
-
-
-def create_field_from_type(type_, converters: Sequence[Converter] = (), default: Any = None):
-    if type_ in (bool, int, float, str, bytes):
-        return Field(type_, default=default)
-
-    for converter in converters:
-        if converter.python == type_:
-            return ConverterField(converter)
-
-    # TODO type_ != Any is a workaround for https://github.com/python/typing/issues/345
-    if type_ != Any and issubclass(type_, List):
-        # FIXME List[List[X]] must not become Repeat(Repeat(X))
-        return Repeat(create_field_from_type(type_.__args__[0]))
-
-    # TODO type_ != Any is a workaround for https://github.com/python/typing/issues/345
-    if type_ != Any and issubclass(type_, Message):
-        return Field(type_)
-
-    raise NotImplementedError(f"Unable to generate field for {type_}")
 
 
 def dynamic(name: str, expression: Union[type, Callable[[Type[Any]], type]]) \
@@ -208,11 +188,11 @@ def magic_normalize(func: Callable[..., Any],
                         param_type = param_type.__supertype__
 
                     if param.default is Parameter.empty:
-                        message_fields[name] = create_field_from_type(param_type, converters=converters)
+                        message_fields[name] = create_field_from_type_hint(param_type, converters=converters)
                     else:
-                        message_fields[name] = create_field_from_type(param_type,
-                                                                      converters=converters,
-                                                                      default=param.default)
+                        message_fields[name] = create_field_from_type_hint(param_type,
+                                                                           converters=converters,
+                                                                           default=param.default)
 
                 request = message_factory(f'{upper_camelcase(func_name)}Request', message_fields)
     else:  # func(self)
