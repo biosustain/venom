@@ -1,8 +1,7 @@
 from abc import abstractmethod, ABC
-from types import MethodType
-from typing import Type, Generic, TypeVar, ClassVar, Any
 
-from venom.exceptions import NotImplemented_
+from typing import Type, Generic, TypeVar, ClassVar
+
 from venom.protocol import Protocol, JSON
 from venom.rpc.method import Method, Req, Res
 
@@ -43,5 +42,6 @@ class AbstractClient(ABC, Generic[S]):
         self._protocol_factory = protocol_factory
 
     @abstractmethod
-    async def invoke(self, method: Method, request: 'venom.message.Message', *, loop: 'asyncio.AbstractEventLoop' = None):
+    async def invoke(self, method: Method, request: 'venom.message.Message', *,
+                     loop: 'asyncio.AbstractEventLoop' = None):
         raise NotImplementedError

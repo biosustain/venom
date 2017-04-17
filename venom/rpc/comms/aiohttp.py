@@ -1,12 +1,12 @@
-from typing import Type
-
-import aiohttp
 import asyncio
 
+import aiohttp
+from typing import Type
+
 from venom.exceptions import Error, ErrorResponse
+from venom.protocol import JSON, Protocol, DictProtocol, URIString
 from venom.rpc.comms import AbstractClient
 from venom.rpc.method import Method, HTTPVerb, HTTPFieldLocation
-from venom.protocol import JSON, Protocol, DictProtocol, URIString
 
 try:
     from aiohttp import web, ClientSession
@@ -43,6 +43,7 @@ def _route_handler(venom: 'venom.rpc.Venom',
             return web.Response(body=rpc_error_response.pack(e.format()),
                                 content_type=rpc_error_response.mime,
                                 status=e.http_status)
+
     return handler
 
 

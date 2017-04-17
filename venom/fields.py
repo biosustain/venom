@@ -1,16 +1,21 @@
+import collections
 from abc import ABCMeta
 from importlib import import_module
-from typing import Iterable, TypeVar, Generic, Any, Tuple, Union, Type
 
-import collections
+from typing import TypeVar, Generic, Any, Union, Type, Sequence, List
 
-from venom.util import cached_property, AttributeDict
+from venom.util import cached_property, AttributeDict, camelcase
 
 T = TypeVar('T', bool, int, float, str, bytes, 'venom.message.Message')
 
 
 class FieldDescriptor(Generic[T], metaclass=ABCMeta):
-    name: str = None
+    _name: str = None
+    _json_name: str = None
+
+    def __init__(self, name: str = None, *, json_name: str = None):
+        self._name = name
+        self._json_name = json_name
 
     def __get__(self, instance: 'venom.message.Message', owner):
         if instance is None:
@@ -23,11 +28,25 @@ class FieldDescriptor(Generic[T], metaclass=ABCMeta):
     def default(self):
         return None
 
+    def __set_name__(self, owner, name):
+        if self._name is None:
+            self._name = name
+
+    @property
+    def json_name(self):
+        if self._json_name is None:
+            return camelcase(self.name)
+        return self._json_name
+
+    @property
+    def name(self):
+        return self._name
+
     # TODO wait on https://github.com/python/mypy/issues/244
     def __set__(self, instance: 'venom.message.Message', value: T):
         instance[self.name] = value
 
-    # TODO Use Python 3.6 __set_name__()
+        # TODO Use Python 3.6 __set_name__()
 
 
 class Field(Generic[T], FieldDescriptor):
@@ -35,11 +54,13 @@ class Field(Generic[T], FieldDescriptor):
                  type_: Union[Type[T], str],
                  default: Any = None,
                  name: str = None,
+                 *,
+                 json_name: str = None,
                  **options) -> None:
+        super(Field, self).__init__(name, json_name=json_name)
         self._type = type_
         self._default = default
         self.options = AttributeDict(options)
-        self.name = name
 
     def default(self):
         if self._default is None:
@@ -63,9 +84,13 @@ class Field(Generic[T], FieldDescriptor):
         return self.type == other.type and self.options == other.options
 
     def __repr__(self):
-        return '<{} {}:{}>'.format(self.__class__.__name__,
-                                   self.name,
-                                   self._type.__name__ if not isinstance(self._type, str) else repr(self._type))
+        type_ = self._type.__qualname__ if not isinstance(self._type, str) else repr(self._type)
+        if self.name:
+            return f'<{self.__class__.__qualname__} {self.name}:{type_}>'
+        return f'<{self.__class__.__qualname__} {type_}>'
+
+    def __hash__(self):
+        return hash(repr(self))
 
 
 P = TypeVar('P')
@@ -163,9 +188,10 @@ class _RepeatValueProxy(collections.MutableSequence):
 
 
 class RepeatField(Generic[CT], FieldDescriptor):
-    def __init__(self, items: Type[CT], name: str = None) -> None:
+    def __init__(self, items: Type[CT], name: str = None, *, json_name: str = None, **options) -> None:
+        super().__init__(name, json_name=json_name)
         self.items = items
-        self.name = name
+        self.options = AttributeDict(options)
 
     def __get__(self, instance: 'venom.message.Message', owner):
         if instance is None:
@@ -175,15 +201,18 @@ class RepeatField(Generic[CT], FieldDescriptor):
     def __eq__(self, other):
         if not isinstance(other, RepeatField):
             return False
-        return self.items == other.items and self.name == other.name
+        return self.items == other.items and self.name == other.name and self.options == other.options
+
+    def __repr__(self):
+        return '<{} {} {}>'.format(self.__class__.__name__, self.name, str(self.items))
 
 
 class MapField(Generic[CT], FieldDescriptor):
-    def __init__(self, values: Type[CT], name: str = None) -> None:
-        super().__init__()
+    def __init__(self, values: Type[CT], name: str = None, *, json_name: str = None, **options) -> None:
+        super().__init__(name, json_name=json_name)
         self.keys = String()
         self.values = values
-        self.name = name
+        self.options = AttributeDict(options)
 
 
 def Repeat(items: Union[Field, MapField, RepeatField, type, str], **kwargs) -> RepeatField:
@@ -197,3 +226,30 @@ def Repeat(items: Union[Field, MapField, RepeatField, type, str], **kwargs) -> R
 def Map(values: Union[Field, MapField, RepeatField, type, str], **kwargs) -> MapField:
     # TODO keys argument.
     return MapField(values, **kwargs)
+
+
+def create_field_from_type_hint(hint,
+                                converters: Sequence['venom.converter.Converter'] = (),
+                                default: Any = None,
+                                name: str = None):
+    if hint in (bool, int, float, str, bytes):
+        return Field(hint, default=default, name=name)
+
+    for converter in converters:
+        if converter.python == hint:
+            return ConverterField(converter, name=name)
+
+    # TODO support 'Repeat' as alias for list.
+    # TODO type_ != Any is a workaround for https://github.com/python/typing/issues/345
+    if hint != Any and issubclass(hint, List):
+        # FIXME List[List[X]] must not become Repeat(Repeat(X))
+        return Repeat(create_field_from_type_hint(hint.__args__[0]), name=name)
+
+    # TODO support Map, Mapping and Dict
+
+    from venom import Message
+    # TODO type_ != Any is a workaround for https://github.com/python/typing/issues/345
+    if hint != Any and issubclass(hint, Message):
+        return Field(hint, name=name)
+
+    raise NotImplementedError(f"Unable to generate field for {hint}")

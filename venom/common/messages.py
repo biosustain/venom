@@ -82,11 +82,11 @@ class Value(Message):
     list_value = Field(ListValue)
 
     value = one_of(  # null_value,
-                   number_value,
-                   string_value,
-                   bool_value,
-                   struct_value,
-                   list_value)
+        number_value,
+        string_value,
+        bool_value,
+        struct_value,
+        list_value)
 
 
 from venom.protocol import JSON as _JSON

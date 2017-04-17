@@ -1,12 +1,12 @@
 from collections import namedtuple
-from typing import List, Dict, NewType
+from typing import List, Dict, NewType, Any
 from unittest import SkipTest
 
 from venom import Empty, Message
 from venom.common import Int64ValueConverter, Int32ValueConverter, IntegerValueConverter, StringValueConverter
 from venom.common import IntegerValue, StringValue
 from venom.fields import Int64, String, Repeat, Integer, Map
-from venom.rpc.inspection import magic_normalize
+from venom.rpc.inspection import magic_normalize, dynamic
 from venom.rpc.resolver import Resolver
 from venom.rpc.test_utils import AioTestCase
 
@@ -176,6 +176,31 @@ class InspectionTestCase(AioTestCase):
 
         with self.assertRaises(RuntimeError):
             inspect = magic_normalize(func, request=IntegerList)
+
+    def test_dynamic(self):
+        @dynamic('value', int)
+        def func(self, value: Any) -> Empty:
+            pass
+
+        inspect = magic_normalize(func, request=IntegerValue)
+        self.assertEqual(inspect.response, Empty)
+        self.assertEqual(inspect.request, IntegerValue)
+
+        @dynamic('return', int)
+        def func(self, value: int) -> Any:
+            pass
+
+        inspect = magic_normalize(func, request=IntegerValue, converters=[IntegerValueConverter])
+        self.assertEqual(inspect.response, IntegerValue)
+        self.assertEqual(inspect.request, IntegerValue)
+
+        @dynamic('return', lambda owner: owner)
+        def func(self, value: int) -> Any:
+            pass
+
+        inspect = magic_normalize(func, request=IntegerValue, converters=[IntegerValueConverter], owner=int)
+        self.assertEqual(inspect.response, IntegerValue)
+        self.assertEqual(inspect.request, IntegerValue)
 
     @SkipTest
     def test_magic_request_message_autogenerate(self):

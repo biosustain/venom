@@ -4,20 +4,21 @@ from unittest import TestCase
 from venom import Message
 from venom.common import StringValue, IntegerValue, BoolValue, NumberValue
 from venom.exceptions import ValidationError
-from venom.fields import String, Number, Field, Repeat
+from venom.fields import String, Number, Field, Repeat, Map
 from venom.protocol import JSON
 
 
 class Foo(Message):
-    string = String()
+    string: str
+    # TODO support self-referential hints
     parent = Field('tests.protocol.test_json_protocol.Foo')
-    string_value = Field(StringValue)
+    string_value: StringValue
 
 
 class JSONProtocolTestCase(TestCase):
     def test_encode_message(self):
         class Pet(Message):
-            sound = String()
+            sound: str
 
         protocol = JSON(Pet)
         self.assertEqual(protocol.encode(Pet('hiss!')), {'sound': 'hiss!'})
@@ -30,20 +31,17 @@ class JSONProtocolTestCase(TestCase):
         self.assertEqual(e.exception.description, "'bad' is not of type 'object'")
         self.assertEqual(e.exception.path, [])
 
-    @SkipTest
-    def test_encode_message_field_attribute(self):
-        # NOTE: removed support for field attributes.
-
+    def test_encode_message_json_name(self):
         class Pet(Message):
-            size = Number(attribute='weight')
+            size = Number(json_name='$size')
 
         protocol = JSON(Pet)
 
         pet = Pet()
         pet.size = 2.5
-        self.assertEqual(protocol.encode(pet), {'weight': 2.5})
-        self.assertEqual(protocol.decode({'weight': 2.5}), Pet(2.5))
-
+        self.assertEqual(protocol.encode(pet), {'$size': 2.5})
+        self.assertEqual(protocol.decode({'$size': 2.5}), Pet(size=2.5))
+        
     def test_encode_repeat_field(self):
         class Pet(Message):
             sounds = Repeat(String())
@@ -59,6 +57,19 @@ class JSONProtocolTestCase(TestCase):
 
         self.assertEqual(e.exception.description, "'meow, purr' is not of type 'list'")
         self.assertEqual(e.exception.path, ['sounds'])
+
+    def test_encode_decode_map(self):
+        class FooInner(Message):
+            i = String()
+
+        class Foo(Message):
+            m = Map(String())
+            f = Map(Field(FooInner))
+
+        message = Foo(m={'a': 'b'}, f={'k': FooInner(i='in')})
+        protocol = JSON(Foo)
+        self.assertEqual(protocol.encode(message), {'m': {'a': 'b'}, 'f': {'k': {'i': 'in'}}})
+        self.assertEqual(protocol.decode({'m': {'a': 'b'}, 'f': {'k': {'i': 'in'}}}), message)
 
     def test_validation_field_string(self):
         class Foo(Message):
@@ -82,16 +93,16 @@ class JSONProtocolTestCase(TestCase):
 
         # FIXME With custom encoding/decoding for values this won't happen.
         with self.assertRaises(ValidationError) as e:
-            protocol.decode({'string_value': {'value': None}})
+            print(protocol.decode({'stringValue': {'value': None}}))
 
         self.assertEqual(e.exception.description, "{'value': None} is not of type 'str'")
-        self.assertEqual(e.exception.path, ['string_value'])
+        self.assertEqual(e.exception.path, ['stringValue'])
 
         with self.assertRaises(ValidationError) as e:
-            protocol.decode({'parent': {'string_value': 42}})
+            protocol.decode({'parent': {'stringValue': 42}})
 
         self.assertEqual(e.exception.description, "42 is not of type 'str'")
-        self.assertEqual(e.exception.path, ['parent', 'string_value'])
+        self.assertEqual(e.exception.path, ['parent', 'stringValue'])
 
     def test_unpack_invalid_json(self):
         class Pet(Message):

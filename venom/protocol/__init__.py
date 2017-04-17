@@ -2,13 +2,13 @@ from abc import ABCMeta, abstractmethod
 from base64 import b64encode, b64decode
 from functools import partial
 from json import JSONDecodeError
-from typing import Type, TypeVar, Generic, Callable, Union, Any, Tuple, Iterable, Dict, List, Set, MutableMapping, \
-    Mapping
+
+from typing import Type, TypeVar, Callable, Union, Any, Iterable, Dict, List, Set, Mapping
 
 from venom import Empty
 from venom import Message
 from venom.exceptions import ValidationError
-from venom.fields import Field, ConverterField, RepeatField, FieldDescriptor
+from venom.fields import Field, RepeatField, FieldDescriptor, MapField
 from venom.message import field_names, fields
 
 
@@ -28,8 +28,8 @@ class Protocol(metaclass=ABCMeta):
     mime: str = None
     name: str = None
 
-    def __new__(cls, fmt: Type[Message], field_names: Set[str] = None):
-        if field_names is None:
+    def __new__(cls, fmt: Type[Message], field_names_: Set[str] = None):
+        if field_names_ is None:
             try:
                 return fmt.__meta__.protocols[cls.name]
             except KeyError:
@@ -40,7 +40,7 @@ class Protocol(metaclass=ABCMeta):
         #     return Protocol.__new__(cls, Empty)
         else:
             instance = super(Protocol, cls).__new__(cls)
-            instance.__init__(fmt, field_names)
+            instance.__init__(fmt, field_names_)
             return instance
 
     def __init__(self, fmt: Type[Message], field_names_: Set[str] = None):
@@ -93,8 +93,8 @@ class JSON(DictProtocol):
     def __init__(self, fmt: Type[Message], field_names_: Set[str] = None):
         super().__init__(fmt, field_names_)
         # TODO camelCase conversion
-        self.field_encoders = {field.name: self._field_encoder(field) for field in self._fields}
-        self.field_decoders = {field.name: self._field_decoder(field) for field in self._fields}
+        self.field_encoders = {(field.name, field.json_name): self._field_encoder(field) for field in self._fields}
+        self.field_decoders = {(field.name, field.json_name): self._field_decoder(field) for field in self._fields}
 
     T = TypeVar('T')
 
@@ -116,6 +116,10 @@ class JSON(DictProtocol):
             field_item_encoder = self._field_encoder(field.items)
             return lambda lst: [field_item_encoder(item) for item in lst]
 
+        if isinstance(field, MapField):
+            field_item_encoder = self._field_encoder(field.values)
+            return lambda dct: {k: field_item_encoder(v) for k, v in dct.items()}  # TODO: keys?
+
         if not isinstance(field, Field):
             raise NotImplementedError()
 
@@ -133,6 +137,10 @@ class JSON(DictProtocol):
         if isinstance(field, RepeatField):
             field_item_decoder = self._field_decoder(field.items)
             return lambda lst: [field_item_decoder(item) for item in self._cast(list, lst)]
+
+        if isinstance(field, MapField):
+            field_item_decoder = self._field_decoder(field.values)
+            return lambda dct: {k: field_item_decoder(v) for k, v in dct.items()}  # TODO: keys?
 
         if not isinstance(field, Field):
             raise NotImplementedError()
@@ -153,9 +161,9 @@ class JSON(DictProtocol):
 
     def encode(self, message: Message):
         obj = {}
-        for name, encode in self.field_encoders.items():
+        for (name, json_name), encode in self.field_encoders.items():
             try:
-                obj[name] = encode(message[name])
+                obj[json_name] = encode(message[name])
             except KeyError:
                 pass
         return obj
@@ -167,12 +175,12 @@ class JSON(DictProtocol):
         if message is None:
             message = self._format()
 
-        for name, decode in self.field_decoders.items():
-            if name in instance:
+        for (name, json_name), decode in self.field_decoders.items():
+            if json_name in instance:
                 try:
-                    message[name] = decode(instance[name])
+                    message[name] = decode(instance[json_name])
                 except ValidationError as e:
-                    e.path.insert(0, name)
+                    e.path.insert(0, json_name)
                     raise e
         return message
 
@@ -194,7 +202,6 @@ class JSON(DictProtocol):
 
 
 class URIString(JSON):
-
     def _field_decoder(self, field: FieldDescriptor) -> Callable[[JSONValue], Any]:
         if isinstance(field, RepeatField):
             raise NotImplementedError(f'Unable to decode {field} from URI string')

@@ -16,8 +16,7 @@ class FieldsTestCase(TestCase):
 
         self.assertIsInstance(M.value, Field)
         self.assertEqual(M.value, Field(str))
-
-        M.value.name = 'value'
+        self.assertEqual(M.value.name, 'value')
 
         m = M()
         self.assertEqual(m.value, str())
@@ -32,8 +31,6 @@ class FieldsTestCase(TestCase):
     def test_repeat_field(self):
         class M(dict):
             items = Repeat(Field(str))
-
-        M.items.name = 'items'
 
         m = M()
 

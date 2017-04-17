@@ -78,5 +78,5 @@ class ValidationError(BadRequest):
         msg = super().format()
         msg.description = self.description
         if self.path:
-           msg.path = '.'.join(self.path)
+            msg.path = '.'.join(self.path)
         return msg

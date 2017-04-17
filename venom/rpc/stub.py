@@ -5,7 +5,6 @@ from venom.rpc.service import Service, ServiceMeta, ServiceManager
 
 
 class StubManager(ServiceManager):
-
     def prepare_method(self, service: Type['Service'], method: MethodDescriptor, name: str):
         return method.stub(service, name)
 

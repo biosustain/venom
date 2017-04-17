@@ -4,15 +4,15 @@ from venom.rpc import Stub, http
 
 
 class HelloRequest(Message):
-    name = String()
-    shout = Bool()
+    name: str
+    shout: bool
 
 
 class HelloResponse(Message):
-    message = String()
+    message: str
 
 
 class HelloStub(Stub):
-    @http.POST('/greet/{name}')
+    @http.POST('./greet/{name}')
     def say_hello(self, request: HelloRequest) -> HelloResponse:
         raise NotImplementedError

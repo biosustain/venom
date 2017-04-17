@@ -1,9 +1,11 @@
 import asyncio
 import unittest
 from functools import wraps
-from typing import Union, Type, Iterable
 from unittest.mock import MagicMock
 from weakref import WeakKeyDictionary
+
+from typing import Union, Type, Iterable
+
 from venom.rpc import Venom, UnknownService, Service
 from venom.rpc.context import RequestContext
 
