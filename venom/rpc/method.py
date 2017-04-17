@@ -40,9 +40,9 @@ class MethodDescriptor(Generic[Req, Res], metaclass=ABCMeta):
     def __init__(self,
                  request: Type[Req] = None,
                  response: Type[Res] = None,
-                 name: str = None,
+                 name: Union[str, Callable[[Service], str]] = None,
                  *,
-                 http_path: str = None,
+                 http_path: Union[str, Callable[[Service], str]] = None,
                  http_method: HTTPVerb = None,
                  http_status: int = None,
                  **options: Dict[str, Any]) -> None:
@@ -68,6 +68,7 @@ class MethodDescriptor(Generic[Req, Res], metaclass=ABCMeta):
     def __get__(self, instance: Service, owner: Type[Service] = None) -> 'Callable[[Any, Req], Awaitable[Res]]':
         pass
 
+    # XXX MethodDescriptor.__get__() is not used anymore
     def __get__(self, instance, owner):
         if self._attr_name:
             from .stub import Stub
@@ -85,9 +86,18 @@ class MethodDescriptor(Generic[Req, Res], metaclass=ABCMeta):
             return method
         return self
 
+    def _get_name(self, service: Type[Service], attr_name: str):
+        if not self.name:
+            return attr_name
+        if callable(self.name):
+            return self.name(service)
+        return self.name
+
     def _get_http_path(self, service: Type[Service], name: str):
         if self.http_path is None:
             http_path = f"./{name.lower().replace('_', '-')}"
+        elif callable(self.http_path):
+            http_path = self.http_path(service)
         elif self.http_path == '':
             http_path = '.'
         else:
@@ -109,12 +119,13 @@ class MethodDescriptor(Generic[Req, Res], metaclass=ABCMeta):
             return 200  # OK
         return self.http_status
 
-    def prepare(self, service: Type[Service], name: str) -> 'Method':
-        return Method(self.name or name,
+    def prepare(self, service: Type[Service], attr_name: str) -> 'Method':
+        name = self._get_name(service, attr_name)
+        return Method(name,
                       self.request or Empty,
                       self.response or Empty,
                       service,
-                      http_path=self._get_http_path(service, self.name or name),
+                      http_path=self._get_http_path(service, name),
                       http_method=self._get_http_method(),
                       http_status=self._get_http_status(self.response or Empty),
                       **self.options)
@@ -209,9 +220,9 @@ class ServiceMethodDescriptor(MethodDescriptor[Req, Res]):
                  func: Callable[..., Any],
                  request: Type[Req] = None,
                  response: Type[Res] = None,
-                 name: str = None,
+                 name: Union[str, Callable[[Service], str]] = None,
                  *,
-                 http_path: str = None,
+                 http_path: Union[str, Callable[[Service], str]] = None,
                  http_method: HTTPVerb = None,
                  http_status: int = None,
                  **options: Dict[str, Any]) -> None:
@@ -226,9 +237,10 @@ class ServiceMethodDescriptor(MethodDescriptor[Req, Res]):
 
     def prepare(self,
                 service: Type[Service],
-                name: str,
+                attr_name: str,
                 *args: Tuple[Resolver, ...],
                 converters: Sequence[Converter] = ()) -> 'ServiceMethod':
+        name = self._get_name(service, attr_name)
         request = self.request
         response = self.response
 
@@ -242,7 +254,7 @@ class ServiceMethodDescriptor(MethodDescriptor[Req, Res]):
                 pass  # method not specified in stub
 
         magic_func = magic_normalize(self._func,
-                                     func_name=name,
+                                     func_name=attr_name,
                                      request=request,
                                      response=response,
                                      owner=service,
@@ -305,13 +317,13 @@ class ServiceMethod(Method[S, Req, Res]):
                          **options)
         self.implementation = implementation
 
-    def prepare(self, service: Type[Service], name: str) -> 'ServiceMethod':
-        return ServiceMethod(name,
+    def prepare(self, service: Type[Service], attr: str) -> 'ServiceMethod':
+        return ServiceMethod(attr,
                              self.request,
                              self.response,
                              service,
                              self.implementation,
-                             http_path=self._get_http_path(service, name),
+                             http_path=self._get_http_path(service, attr),
                              http_method=self._get_http_method(),
                              http_status=self._get_http_status(self.response),
                              **self.options)
