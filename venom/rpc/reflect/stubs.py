@@ -1,7 +1,7 @@
 from venom import Message
+from venom.fields import Field, Repeat, String, Map, Bool
 from venom.rpc import Stub
 from venom.rpc import http
-from venom.fields import Field, Repeat, String, Map, Bool
 
 
 class SchemaMessage(Message):
@@ -60,7 +60,6 @@ class OpenAPISchema(Message):
 
 
 class ReflectStub(Stub):
-
     @http.GET('/openapi.json')
     def get_openapi_schema(self) -> OpenAPISchema:
         raise NotImplementedError()

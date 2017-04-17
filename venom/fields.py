@@ -1,9 +1,8 @@
+import collections
 from abc import ABCMeta
 from importlib import import_module
+
 from typing import TypeVar, Generic, Any, Union, Type, Sequence, List
-
-import collections
-
 
 from venom.util import cached_property, AttributeDict, camelcase
 
@@ -47,7 +46,7 @@ class FieldDescriptor(Generic[T], metaclass=ABCMeta):
     def __set__(self, instance: 'venom.message.Message', value: T):
         instance[self.name] = value
 
-    # TODO Use Python 3.6 __set_name__()
+        # TODO Use Python 3.6 __set_name__()
 
 
 class Field(Generic[T], FieldDescriptor):

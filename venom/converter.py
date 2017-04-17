@@ -1,8 +1,7 @@
 from abc import ABCMeta, abstractmethod
-from typing import Any, Union, Generic, TypeVar
-from typing import Type
 
-from venom.message import Message
+from typing import Generic, TypeVar
+from typing import Type
 
 T = TypeVar('T', bool, int, float, str, bytes, 'venom.message.Message')
 

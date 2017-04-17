@@ -1,21 +1,21 @@
-from typing import Iterable
-from itertools import groupby, chain
-from functools import singledispatch
 from collections import defaultdict
+from functools import singledispatch
+from itertools import groupby, chain
 from operator import attrgetter
+
+from typing import Iterable
+
+from venom import Message
+from venom.fields import Field, RepeatField, MapField
+from venom.message import fields, is_empty
+from venom.protocol import JSON
+from venom.rpc.method import Method, HTTPFieldLocation
 from venom.rpc.reflect.reflect import Reflect
 from venom.rpc.reflect.stubs import OperationMessage, \
     ParameterMessage, ResponsesMessage, ResponseMessage, \
     SchemaMessage, InfoMessage, OpenAPISchema
-from venom.protocol import JSON
-from venom.fields import Field, RepeatField, MapField
-from venom import Message
-from venom.message import fields, is_empty
-from venom.rpc.method import Method, HTTPFieldLocation
-
 
 DESCRIPTION = 'description'
-
 
 # TODO: other types
 TYPE_TO_JSON = {
@@ -92,12 +92,14 @@ def parameters_path(method: Method) -> Iterable:
         PATH_PARAMETER
     )
 
+
 def parameters_query(method: Method) -> Iterable:
     return parameters_at_location(
         method.request,
         method.http_field_locations()[HTTPFieldLocation.QUERY],
         QUERY_PARAMETER
     )
+
 
 def parameters_body(method: Method) -> list:
     body_fields = method.http_field_locations()[HTTPFieldLocation.BODY]
@@ -140,7 +142,7 @@ def schema_for_fields(fields, description=None) -> SchemaMessage:
         type='object',
         properties={
             v.json_name: schema_message(v) for v in fields
-            },
+        },
         description=description,
     )
 

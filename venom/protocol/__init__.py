@@ -1,15 +1,14 @@
 from abc import ABCMeta, abstractmethod
 from base64 import b64encode, b64decode
 from functools import partial
-from itertools import chain
 from json import JSONDecodeError
-from typing import Type, TypeVar, Generic, Callable, Union, Any, Tuple, Iterable, Dict, List, Set, MutableMapping, \
-    Mapping
+
+from typing import Type, TypeVar, Callable, Union, Any, Iterable, Dict, List, Set, Mapping
 
 from venom import Empty
 from venom import Message
 from venom.exceptions import ValidationError
-from venom.fields import Field, ConverterField, RepeatField, FieldDescriptor, MapField
+from venom.fields import Field, RepeatField, FieldDescriptor, MapField
 from venom.message import field_names, fields
 
 
@@ -203,7 +202,6 @@ class JSON(DictProtocol):
 
 
 class URIString(JSON):
-
     def _field_decoder(self, field: FieldDescriptor) -> Callable[[JSONValue], Any]:
         if isinstance(field, RepeatField):
             raise NotImplementedError(f'Unable to decode {field} from URI string')

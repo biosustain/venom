@@ -27,5 +27,3 @@ class ReflectService(Service):
     @http.GET('/openapi.json')
     def get_openapi_schema(self) -> OpenAPISchema:
         return make_openapi_schema(self.reflect)
-
-

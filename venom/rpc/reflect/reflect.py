@@ -1,16 +1,16 @@
 from typing import Type, Set
 
 from venom import Message
-from venom.message import fields
-from venom.rpc.method import Method
 from venom.fields import RepeatField, MapField, FieldDescriptor
+from venom.message import fields
 from venom.rpc import Service
+from venom.rpc.method import Method
 
 
 class Reflect(object):
-    services : Set[Service]
-    methods : Set[Type[Method]]
-    messages : Set[Type[Message]]
+    services: Set[Service]
+    methods: Set[Type[Method]]
+    messages: Set[Type[Message]]
 
     def __init__(self, title='', version=''):
         self.title = title

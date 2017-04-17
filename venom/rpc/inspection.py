@@ -15,7 +15,8 @@ from venom.util import upper_camelcase
 MessageFunction = NamedTuple('MessageFunction', [
     ('request', Type[Message]),
     ('response', Type[Message]),
-    ('invokable', Callable[[Any, Message, Optional['asyncio.AbstractEventLoop']], Message])  # TODO update to typing.Coroutine in Python 3.6
+    ('invokable', Callable[[Any, Message, Optional['asyncio.AbstractEventLoop']], Message])
+    # TODO update to typing.Coroutine in Python 3.6
 ])
 
 
@@ -40,12 +41,14 @@ def dynamic(name: str, expression: Union[type, Callable[[Type[Any]], type]]) \
     :param expression: a subclass of ``type`` or a callable in the format ``(owner: Type[Any]) -> type``.
     :return: 
     """
+
     def decorator(func):
         if not hasattr(func, '__dynamic__'):
             func.__dynamic__ = {name: expression}
         else:
             func.__dynamic__[name] = expression
         return func
+
     return decorator
 
 
@@ -91,7 +94,6 @@ def magic_normalize(func: Callable[..., Any],
 
     func_signature = signature(func)
     func_type_hints = _get_func_type_annotations(func, owner)
-
 
     if len(func_signature.parameters) == 0:
         # no "self" parameter: func()

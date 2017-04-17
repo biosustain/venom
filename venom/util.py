@@ -1,4 +1,4 @@
-from typing import Dict, Any, Tuple
+from typing import Tuple
 
 
 # FIXME should be Generic
@@ -13,6 +13,7 @@ def _meta_obj_to_dict(meta_obj):
         if not k.startswith('__'):
             dct[k] = v
     return dct
+
 
 # FIXME should be AttributeDict[str, Any]
 MetaDict = AttributeDict
@@ -45,6 +46,7 @@ class cached_property(object):
     """
     Descriptor (non-data) for building an attribute on-demand on first use.
     """
+
     def __init__(self, factory):
         """
         <factory> is called such: factory(instance) to build the attribute.

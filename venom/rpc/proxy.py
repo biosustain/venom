@@ -1,4 +1,5 @@
 from typing import Union, Type, TypeVar, Generic, cast, Any
+
 from venom.rpc.service import Service
 
 S = TypeVar('S', bound=Service)

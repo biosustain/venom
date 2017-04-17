@@ -1,8 +1,9 @@
 import asyncio
+from weakref import WeakKeyDictionary
+
 from typing import Optional, MutableMapping
 
 from venom.rpc.resolver import Resolver
-from weakref import WeakKeyDictionary
 
 
 class RequestContext(object):

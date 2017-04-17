@@ -1,11 +1,10 @@
 import calendar
-from typing import TypeVar, Generic
-
 import datetime
 
-from venom.common import types
+from typing import TypeVar
+
 from venom.common.messages import Int64Value, Int32Value, StringValue, Float32Value, Float64Value, BoolValue, Timestamp, \
-    BytesValue, Value
+    BytesValue
 from venom.converter import Converter
 
 V = TypeVar('V')
@@ -84,7 +83,6 @@ class DateTimeConverter(Converter):
         seconds = int(unix)
         nanos = int((unix - seconds) * 10 ** 9)
         return Timestamp(seconds, nanos)
-
 
 # TODO
 # class JSONValueConverter(Converter):

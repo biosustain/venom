@@ -1,8 +1,7 @@
-from typing import Type, Union, Iterable, Tuple, ClassVar, TypeVar, overload, Mapping
-from weakref import WeakKeyDictionary
-
 import asyncio
+
 from blinker import Signal
+from typing import Type, Union, Iterable, ClassVar, TypeVar, overload, Mapping
 
 from venom.rpc.context import RequestContext, DictRequestContext
 from venom.rpc.stub import Stub
@@ -13,6 +12,7 @@ from .service import Service
 
 class UnknownService(RuntimeError):
     pass
+
 
 S = TypeVar('S', bound=Service)
 
@@ -73,10 +73,12 @@ class Venom(object):
         return reference
 
     @overload
-    def get_instance(self, reference: Type[S]) -> S: pass
+    def get_instance(self, reference: Type[S]) -> S:
+        pass
 
     @overload
-    def get_instance(self, reference: str) -> Service: pass
+    def get_instance(self, reference: str) -> Service:
+        pass
 
     def get_instance(self, reference):
         cls = self._resolve_service_cls(reference)
@@ -115,4 +117,3 @@ class Venom(object):
 
     def __iter__(self) -> Iterable[Type[Service]]:
         return iter(self._instances.values())
-

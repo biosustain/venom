@@ -1,19 +1,16 @@
 import asyncio
 import enum
 import re
-import warnings
-from abc import abstractmethod, ABCMeta, ABC
-from functools import partial
+from abc import ABCMeta
+
 from types import MethodType
-from typing import Callable, Any, Type, Union, Set, Dict, Sequence, Tuple, Mapping, Optional, Awaitable, NamedTuple, \
-    TypeVar, Generic, overload, Coroutine
+from typing import Callable, Any, Type, Union, Set, Dict, Sequence, Tuple, Awaitable, TypeVar, Generic, overload
 
 from venom.converter import Converter
 from venom.exceptions import NotImplemented_
 from venom.message import Message, Empty, field_names
 from venom.rpc.inspection import magic_normalize
 from venom.rpc.resolver import Resolver
-from venom.util import AttributeDict, MetaDict, cached_property
 
 _RULE_PARAMETER_RE = re.compile('\{([^}:]+)(:[^}]*)?\}')
 
@@ -40,7 +37,6 @@ Service = 'venom.rpc.service.Service'
 
 
 class MethodDescriptor(Generic[Req, Res], metaclass=ABCMeta):
-
     def __init__(self,
                  request: Type[Req] = None,
                  response: Type[Res] = None,
@@ -65,10 +61,12 @@ class MethodDescriptor(Generic[Req, Res], metaclass=ABCMeta):
         self._attr_name = name
 
     @overload
-    def __get__(self, instance: None, owner: Type[Service] = None) -> 'MethodDescriptor[Req, Res]': pass
+    def __get__(self, instance: None, owner: Type[Service] = None) -> 'MethodDescriptor[Req, Res]':
+        pass
 
     @overload
-    def __get__(self, instance: Service, owner: Type[Service] = None) -> 'Callable[[Any, Req], Awaitable[Res]]': pass
+    def __get__(self, instance: Service, owner: Type[Service] = None) -> 'Callable[[Any, Req], Awaitable[Res]]':
+        pass
 
     def __get__(self, instance, owner):
         if self._attr_name:
@@ -187,10 +185,12 @@ class Method(Generic[S, Req, Res], MethodDescriptor[Req, Res]):
         raise NotImplemented_()
 
     @overload
-    def __get__(self, instance: None, owner: Type[S] = None) -> 'MethodDescriptor[Req, Res]': pass
+    def __get__(self, instance: None, owner: Type[S] = None) -> 'MethodDescriptor[Req, Res]':
+        pass
 
     @overload
-    def __get__(self, instance: S, owner: Type[S] = None) -> 'Callable[[S, Req], Awaitable[Res]]': pass
+    def __get__(self, instance: S, owner: Type[S] = None) -> 'Callable[[S, Req], Awaitable[Res]]':
+        pass
 
     def __get__(self, instance, owner=None):
         if instance is None:
@@ -277,8 +277,8 @@ class ServiceMethodDescriptor(MethodDescriptor[Req, Res]):
                       http_status=self._get_http_status(magic_func.response),
                       **self.options)
 
-    # def __call__(self, *args, **kwargs):
-    #     return self._func(*args, **kwargs)
+        # def __call__(self, *args, **kwargs):
+        #     return self._func(*args, **kwargs)
 
 
 class ServiceMethod(Method[S, Req, Res]):
