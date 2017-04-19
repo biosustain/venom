@@ -16,6 +16,7 @@ class ConverterFieldsTestCase(TestCase):
 
         message = Foo()
 
+        self.assertEqual(Foo.created_at.default(), Timestamp())
         self.assertEqual(message.get('created_at'), Timestamp())
         self.assertEqual(message.created_at, datetime(1970, 1, 1, 0, 0))
 
@@ -29,7 +30,7 @@ class ConverterFieldsTestCase(TestCase):
             wire = int
             python = str
 
-            def convert(self, value: int) -> str:
+            def resolve(self, value: int) -> str:
                 return str(value)
 
             def format(self, value: str) -> int:
@@ -39,6 +40,8 @@ class ConverterFieldsTestCase(TestCase):
             int_id = ConverterField(StringConverter())
 
         message = Foo()
+
+        self.assertEqual(Foo.int_id.default(), 0)
         self.assertEqual(message.get('int_id'), 0)
         self.assertEqual(message.int_id, '0')
 

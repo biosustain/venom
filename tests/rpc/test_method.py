@@ -22,7 +22,7 @@ class MethodTestCase(AioTestCase):
             wire = SnakeMessage
             python = Snake
 
-            def convert(self, message: SnakeMessage) -> Snake:
+            def resolve(self, message: SnakeMessage) -> Snake:
                 return Snake(message.name, message.size)
 
             def format(self, value: Snake) -> SnakeMessage:

@@ -1,13 +1,13 @@
 from venom import Message
-from venom.fields import Field, Repeat, String, Map, Bool
+from venom.fields import Field, repeated, String, Map, Bool, MapField, Repeat
 from venom.rpc import Stub
 from venom.rpc import http
 
 
 class SchemaMessage(Message):
-    type = String()  # TODO: enum
-    description = String()
-    properties = Map(Field('venom.rpc.reflect.openapi.SchemaMessage'))
+    type: str  # TODO: enum
+    description: str
+    properties = MapField('venom.rpc.reflect.openapi.SchemaMessage')
     ref = String(json_name='$ref')
     additional_properties = Field('venom.rpc.reflect.openapi.SchemaMessage')
     items = Field('venom.rpc.reflect.openapi.SchemaMessage')
@@ -15,48 +15,58 @@ class SchemaMessage(Message):
 
 class ParameterMessage(Message):
     is_in = String(json_name='in')  # TODO: enum
-    description = String()
-    required = Bool()
-    name = String()
-    type = String()
-    items = Field(SchemaMessage)
-    schema = Field(SchemaMessage)
+    description: str
+    required: bool
+    name: str
+    type: str
+    items: SchemaMessage
+    schema: SchemaMessage
 
 
 class ResponseMessage(Message):
-    description = String()
-    schema = Field(SchemaMessage)
+    description: str
+    schema: SchemaMessage
 
 
 class ResponsesMessage(Message):
-    default = Field(ResponseMessage)  # TODO: error codes
+    default: ResponseMessage  # TODO: error codes
 
 
 class OperationMessage(Message):
-    produces = Repeat(String())
-    responses = Field(ResponsesMessage)
-    parameters = Repeat(ParameterMessage)
+    produces: Repeat[str]
+    responses: ResponsesMessage
+    parameters: Repeat[ParameterMessage]
 
 
 class InfoMessage(Message):
-    version = String()
-    title = String()
-    description = String()
-    terms_of_service = String()
-    contact = String()
-    license = String()
+    version: str
+    title: str
+    description: str
+    terms_of_service: str
+    contact: str
+    license: str
+
+
+class PathsMessage(Message):
+    get: OperationMessage
+    put: OperationMessage
+    post: OperationMessage
+    delete: OperationMessage
+    options: OperationMessage
+    head: OperationMessage
+    patch: OperationMessage
 
 
 class OpenAPISchema(Message):
-    swagger = String()
-    schemes = Repeat(String())
-    consumes = Repeat(String())
-    produces = Repeat(String())
-    info = Field(InfoMessage)
-    host = String()
-    base_path = String()
-    paths = Map(Map(Field(OperationMessage)))
-    definitions = Map(Field(SchemaMessage))
+    swagger: str
+    schemes: Repeat[str]
+    consumes: Repeat[str]
+    produces: Repeat[str]
+    info: InfoMessage
+    host: str
+    base_path: str
+    paths: Map[str, PathsMessage]
+    definitions: Map[str, SchemaMessage]
 
 
 class ReflectStub(Stub):

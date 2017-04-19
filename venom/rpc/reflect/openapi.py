@@ -1,12 +1,11 @@
 from collections import defaultdict
-from functools import singledispatch
 from itertools import groupby, chain
 from operator import attrgetter
 
 from typing import Iterable
 
 from venom import Message
-from venom.fields import Field, RepeatField, MapField
+from venom.fields import FieldDescriptor
 from venom.message import fields, is_empty
 from venom.protocol import JSON
 from venom.rpc.method import Method, HTTPFieldLocation
@@ -43,34 +42,28 @@ def ref_schema_message(message: Message) -> SchemaMessage:
     return SchemaMessage(ref=f'#/definitions/{message.__meta__.name}')
 
 
-@singledispatch
-def schema_message(field: Field) -> SchemaMessage:
+def schema_message(field: FieldDescriptor) -> SchemaMessage:
     if field.type not in TYPE_TO_JSON:
         if issubclass(field.type, Message):
-            return ref_schema_message(field.type)
-        return schema_message(field.type)
-    return SchemaMessage(
-        type=TYPE_TO_JSON[field.type],
-        description=field.options.get(DESCRIPTION),
-    )
+            schema = ref_schema_message(field.type)
+        else:
+            raise NotImplementedError(f'Unrecognized field type: {field.type}')
+    else:
+        schema = SchemaMessage(type=TYPE_TO_JSON[field.type])
 
+    if field.repeated:
+        if field.key_type:
+            return SchemaMessage(type='object',
+                                 additional_properties=schema,
+                                 description=field.options.get(DESCRIPTION))
+        return SchemaMessage(type='array',
+                             items=schema,
+                             description=field.options.get(DESCRIPTION))
 
-@schema_message.register(RepeatField)
-def schema_message_repeat(field: RepeatField) -> SchemaMessage:
-    return SchemaMessage(
-        type='array',
-        items_=schema_message(field.items),
-        description=field.options.get(DESCRIPTION),
-    )
+    if not issubclass(field.type, Message):
+        schema.description = field.options.get(DESCRIPTION)
 
-
-@schema_message.register(MapField)
-def schema_message_map(field: MapField) -> SchemaMessage:
-    return SchemaMessage(
-        type='object',
-        additionalProperties=schema_message(field.values),
-        description=field.options.get(DESCRIPTION),
-    )
+    return schema
 
 
 def parameters_at_location(request: Message, names: Iterable, default: dict):

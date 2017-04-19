@@ -1,6 +1,6 @@
 import os
 from unittest import TestCase
-from venom.fields import Int, String, Repeat, Field
+from venom.fields import Int, String, repeated, Field
 from venom.message import Message
 from venom.rpc import Service, http, Venom
 from venom.protocol import JSON
@@ -15,7 +15,7 @@ TEST_DIR = os.path.dirname(__file__)
 class OpenAPITestCase(TestCase):
     def test_openapi_simple(self):
         class PetSimple(Message):
-            id = Field(Int())
+            id = Int()
 
         class PetServiceSimple(Service):
             class Meta:
@@ -79,9 +79,9 @@ class OpenAPITestCase(TestCase):
             pet_id = String(description='Pet ID to query')
 
         class QueryResponse(Message):
-            ids = Repeat(Pet, description='Bunch of pets')
+            ids = repeated(Field(Pet, description='Bunch of pets'))
             pet = Field(Pet, description='The other pet')
-            repeat = Repeat(String, description='Bunch of strings')
+            repeat = repeated(String(description='Bunch of strings'))
 
         class PetMapping(Service):
             class Meta:
@@ -102,16 +102,17 @@ class OpenAPITestCase(TestCase):
                 ids=SchemaMessage(
                     type='array',
                     description='Bunch of pets',
-                    items_=SchemaMessage(ref='#/definitions/Pet')
+                    items=SchemaMessage(ref='#/definitions/Pet')
                 ),
                 pet=SchemaMessage(ref='#/definitions/Pet'),
                 repeat=SchemaMessage(
                     type='array',
                     description='Bunch of strings',
-                    items_=SchemaMessage(type='string')
+                    items=SchemaMessage(type='string')
                 ),
             ),
         )
+        print(schema.definitions['QueryResponse'])
         self.assertEqual(schema.definitions['QueryResponse'], response)
 
     def test_venom_info(self):

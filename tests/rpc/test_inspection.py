@@ -5,7 +5,7 @@ from unittest import SkipTest
 from venom import Empty, Message
 from venom.common import Int64ValueConverter, Int32ValueConverter, IntegerValueConverter, StringValueConverter
 from venom.common import IntegerValue, StringValue
-from venom.fields import Int64, String, Repeat, Integer, Map
+from venom.fields import Int64, String, repeated, Integer, Map, MapField
 from venom.rpc.inspection import magic_normalize, dynamic
 from venom.rpc.resolver import Resolver
 from venom.rpc.test_utils import AioTestCase
@@ -153,7 +153,7 @@ class InspectionTestCase(AioTestCase):
 
     def test_magic_request_message_unpack_map_param(self):
         class Pairs(Message):
-            pairs = Map(String())
+            pairs = MapField(str)
 
         def func(self, pairs: Dict[str, str]) -> Empty:
             pass
@@ -162,10 +162,10 @@ class InspectionTestCase(AioTestCase):
 
     def test_magic_request_message_unpack_repeat_param(self):
         class StringList(Message):
-            values = Repeat(String())
+            values = repeated(String())
 
         class IntegerList(Message):
-            values = Repeat(Integer())
+            values = repeated(Integer())
 
         def func(self, values: List[str]) -> Empty:
             pass

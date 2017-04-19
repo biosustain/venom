@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from venom.fields import String, Field, Repeat, _RepeatValueProxy
+from venom.fields import String, Field, repeated, Repeat
 
 
 class FieldsTestCase(TestCase):
@@ -30,14 +30,14 @@ class FieldsTestCase(TestCase):
 
     def test_repeat_field(self):
         class M(dict):
-            items = Repeat(Field(str))
+            items = repeated(Field(str))
 
         m = M()
 
         with self.assertRaises(KeyError):
             m['items']
 
-        self.assertIsInstance(m.items, _RepeatValueProxy)
+        self.assertIsInstance(m.items, Repeat)
         self.assertEqual(list(m.items), [])
 
         m.items.append(1)

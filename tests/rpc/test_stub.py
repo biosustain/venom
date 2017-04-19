@@ -2,7 +2,7 @@ from typing import List
 from unittest import SkipTest
 
 from venom import Empty
-from venom.common import StringValue, Bool, Repeat
+from venom.common import StringValue, Bool, repeated
 from venom.exceptions import NotImplemented_
 from venom.fields import String
 from venom.message import fields
@@ -58,7 +58,7 @@ class StubTestCase(AioTestCase):
 
         self.assertEqual(GreeterStub.greet_many.request.__meta__.name, 'GreetManyRequest')
         self.assertEqual(tuple(fields(GreeterStub.greet_many.request)), (
-            Repeat(String(), name='names'),
+            repeated(String(), name='names'),
         ))
 
         self.assertEqual(GreeterStub.greet_many.response, StringValue)
@@ -73,7 +73,7 @@ class StubTestCase(AioTestCase):
 
         self.assertEqual(GreeterStub.get_greetings.response.__meta__.name, 'GetGreetingsResponse')
         self.assertEqual(tuple(fields(GreeterStub.get_greetings.response)), (
-            Repeat(String(), name='values')
+            repeated(String(), name='values')
         ))
 
         self.assertEqual(GreeterStub.greet.response, StringValue)

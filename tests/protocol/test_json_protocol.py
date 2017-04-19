@@ -4,7 +4,7 @@ from unittest import TestCase
 from venom import Message
 from venom.common import StringValue, IntegerValue, BoolValue, NumberValue
 from venom.exceptions import ValidationError
-from venom.fields import String, Number, Field, Repeat, Map
+from venom.fields import String, Number, Field, repeated, Map, MapField
 from venom.protocol import JSON
 
 
@@ -44,7 +44,9 @@ class JSONProtocolTestCase(TestCase):
         
     def test_encode_repeat_field(self):
         class Pet(Message):
-            sounds = Repeat(String())
+            sounds = repeated(String())
+
+        self.assertEqual(Pet.sounds.repeated, True)
 
         protocol = JSON(Pet)
         self.assertEqual(protocol.encode(Pet(['hiss!', 'slither'])), {'sounds': ['hiss!', 'slither']})
@@ -63,11 +65,13 @@ class JSONProtocolTestCase(TestCase):
             i = String()
 
         class Foo(Message):
-            m = Map(String())
-            f = Map(Field(FooInner))
+            m = MapField(str)
+            f = MapField(FooInner)
 
         message = Foo(m={'a': 'b'}, f={'k': FooInner(i='in')})
         protocol = JSON(Foo)
+        self.assertEqual(dict(message.m), {'a': 'b'})
+        self.assertEqual(dict(message.f), {'k': FooInner(i='in')})
         self.assertEqual(protocol.encode(message), {'m': {'a': 'b'}, 'f': {'k': {'i': 'in'}}})
         self.assertEqual(protocol.decode({'m': {'a': 'b'}, 'f': {'k': {'i': 'in'}}}), message)
 
@@ -93,7 +97,7 @@ class JSONProtocolTestCase(TestCase):
 
         # FIXME With custom encoding/decoding for values this won't happen.
         with self.assertRaises(ValidationError) as e:
-            print(protocol.decode({'stringValue': {'value': None}}))
+            protocol.decode({'stringValue': {'value': None}})
 
         self.assertEqual(e.exception.description, "{'value': None} is not of type 'str'")
         self.assertEqual(e.exception.path, ['stringValue'])

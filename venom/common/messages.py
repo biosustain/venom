@@ -2,7 +2,7 @@ import enum
 
 from typing import Iterable, Any, Tuple
 
-from venom.fields import String, Int32, Int64, Bool, Float32, Float64, Repeat, Bytes, Field, Map
+from venom.fields import String, Int32, Int64, Bool, Float32, Float64, repeated, Bytes, Field, MapField
 from venom.message import Message, one_of
 
 
@@ -66,11 +66,11 @@ class NullValue(enum.Enum):
 
 
 class Struct(Message):
-    fields = Map('venom.common.messages.Value')
+    fields = MapField('venom.common.messages.Value')
 
 
 class ListValue(Message):
-    values = Repeat('venom.common.messages.Value')
+    values = repeated('venom.common.messages.Value')
 
 
 class Value(Message):
@@ -108,7 +108,7 @@ BoolValue.__meta__.protocols['json'] = _JSONValue(BoolValue)
 
 
 class FieldMask(Message):
-    paths = Repeat(String())
+    paths = repeated(String())
 
     class Meta:
         proto_package = 'google.protobuf'

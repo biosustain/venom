@@ -112,52 +112,40 @@ class JSON(DictProtocol):
         return float(value)
 
     def _field_encoder(self, field: FieldDescriptor) -> Callable[[Any], JSONValue]:
-        if isinstance(field, RepeatField):
-            field_item_encoder = self._field_encoder(field.items)
-            return lambda lst: [field_item_encoder(item) for item in lst]
-
-        if isinstance(field, MapField):
-            field_item_encoder = self._field_encoder(field.values)
-            return lambda dct: {k: field_item_encoder(v) for k, v in dct.items()}  # TODO: keys?
-
-        if not isinstance(field, Field):
-            raise NotImplementedError()
-
         if issubclass(field.type, Message):
             field_protocol = self._get_protocol(field.type)
-            return lambda msg: field_protocol.encode(msg)
+            encode_value = lambda msg: field_protocol.encode(msg)
+        elif field.type is bytes:
+            encode_value = lambda b: b64encode(b)
+        else:
+            # assume all is JSON from here
+            encode_value = lambda value: value
 
-        if field.type is bytes:
-            return lambda b: b64encode(b)
-
-        # assume all is JSON from here
-        return lambda value: value
+        if field.repeated:
+            if field.key_type:
+                return lambda dct: {k: encode_value(v) for k, v in dct.items()}
+            return lambda lst: [encode_value(v) for v in lst]
+        return encode_value
 
     def _field_decoder(self, field: FieldDescriptor) -> Callable[[JSONValue], Any]:
-        if isinstance(field, RepeatField):
-            field_item_decoder = self._field_decoder(field.items)
-            return lambda lst: [field_item_decoder(item) for item in self._cast(list, lst)]
-
-        if isinstance(field, MapField):
-            field_item_decoder = self._field_decoder(field.values)
-            return lambda dct: {k: field_item_decoder(v) for k, v in dct.items()}  # TODO: keys?
-
-        if not isinstance(field, Field):
-            raise NotImplementedError()
-
         if issubclass(field.type, Message):
             field_protocol = self._get_protocol(field.type)
-            return lambda msg: field_protocol.decode(msg)
-
-        # an integer (int) in JSON is also a number (float), so we convert here if necessary:
-        if field.type is float:
-            return self._cast_number
-
-        if field.type is bytes:
+            decode_value = lambda msg: field_protocol.decode(msg)
+        elif field.type is float:
+            # an integer (int) in JSON is also a number (float), so we convert here if necessary:
+            decode_value = self._cast_number
+        elif field.type is bytes:
             # TODO catch TypeError
-            return lambda b: b64decode(b)
+            decode_value = lambda b: b64decode(b)
+        else:
+            # assume all is JSON from here
+            decode_value = partial(self._cast, field.type)
 
-        return partial(self._cast, field.type)
+        if field.repeated:
+            if field.key_type:
+                return lambda dct: {k: decode_value(v) for k, v in self._cast(dict, dct).items()}
+            return lambda lst: [decode_value(item) for item in self._cast(list, lst)]
+        return decode_value
 
     def encode(self, message: Message):
         obj = {}

@@ -20,19 +20,6 @@ MessageFunction = NamedTuple('MessageFunction', [
 ])
 
 
-def get_field_type(field):
-    # TODO support other mappings and sequences
-    # XXX support for list-within-a-list situations?
-    if isinstance(field, RepeatField):
-        return List[field.items.type]
-    elif isinstance(field, MapField):
-        return Dict[str, field.values.type]
-    elif isinstance(field, Field):
-        return field.type
-    else:
-        raise NotImplementedError
-
-
 def dynamic(name: str, expression: Union[type, Callable[[Type[Any]], type]]) \
         -> Callable[[Callable[..., Any]], Callable[..., Any]]:  # TODO type annotations for pass-through decorator
     """
@@ -153,7 +140,7 @@ def magic_normalize(func: Callable[..., Any],
                         raise RuntimeError(f"Unexpected required argument in {func}: "
                                            f"'{name}' is not a field of {request}")
 
-                    field_type = get_field_type(field)
+                    field_type = field.descriptor_type_hint
 
                     if param_type not in (Any, field_type):
                         raise RuntimeError(f"Bad argument in {func}: "
@@ -164,7 +151,7 @@ def magic_normalize(func: Callable[..., Any],
                 for name, (param_type, default) in remaining_params.items():
                     if name in request_fields:
                         field = request_fields[name]
-                        field_type = get_field_type(field)
+                        field_type = field.descriptor_type_hint
 
                         if param_type not in (Any, field_type):
                             raise RuntimeError(f"Bad argument in {func}: "
@@ -249,7 +236,7 @@ def magic_normalize(func: Callable[..., Any],
         wrap_kwargs = lambda req: to_dict(req)
     elif unpack_request is False:
         if request_converter:
-            wrap_args = lambda req: (request_converter.convert(req),)
+            wrap_args = lambda req: (request_converter.resolve(req),)
     elif unpack_request == ():
         wrap_args = lambda req: ()
     else:

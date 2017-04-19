@@ -2,7 +2,7 @@ from collections import OrderedDict
 from typing import List
 from unittest import TestCase, SkipTest
 
-from venom.fields import String, Integer, Repeat, Field
+from venom.fields import String, Integer, repeated, Field
 from venom.message import Message, from_object, items
 
 
@@ -54,7 +54,7 @@ class MessageTestCase(TestCase):
             'age'
         ), tuple(Pet.__fields__.keys()))
         self.assertEqual({
-            'sounds': Repeat(String(), name='sounds'),
+            'sounds': repeated(String(), name='sounds'),
             'size': Field(float, name='size'),
             'speed': Field(int, name='speed'),
             'age': Field(int, name='age')

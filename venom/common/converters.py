@@ -12,7 +12,7 @@ T = TypeVar('T')
 
 
 class _ValueConverter(Converter[V, T]):
-    def convert(self, message: V) -> T:
+    def resolve(self, message: V) -> T:
         return message.value
 
     def format(self, value: T) -> V:
@@ -64,7 +64,7 @@ class DateConverter(Converter):
     wire = Timestamp
     python = datetime.date
 
-    def convert(self, value: Timestamp) -> datetime.date:
+    def resolve(self, value: Timestamp) -> datetime.date:
         return datetime.datetime.fromtimestamp(value.seconds).date()
 
     def format(self, value: datetime.date) -> Timestamp:
@@ -75,7 +75,7 @@ class DateTimeConverter(Converter):
     wire = Timestamp
     python = datetime.datetime
 
-    def convert(self, value: Timestamp) -> datetime.datetime:
+    def resolve(self, value: Timestamp) -> datetime.datetime:
         return datetime.datetime.utcfromtimestamp(value.seconds + value.nanos / 10 ** 9)
 
     def format(self, value: datetime.datetime) -> Timestamp:

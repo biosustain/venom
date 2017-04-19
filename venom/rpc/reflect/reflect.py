@@ -20,13 +20,8 @@ class Reflect(object):
         self.messages = set()
 
     def _add_field(self, field: FieldDescriptor):
-        if isinstance(field, RepeatField):
-            self._add_field(field.items)
-        elif isinstance(field, MapField):
-            self._add_field(field.values)
-        else:
-            if issubclass(field.type, Message):
-                self._add_message(field.type)
+        if issubclass(field.type, Message):
+            self._add_message(field.type)
 
     def _add_message(self, message: Message):
         if message not in self.messages:

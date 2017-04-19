@@ -2,7 +2,7 @@ from abc import ABCMeta
 from collections import Mapping, ItemsView
 from collections import OrderedDict
 
-from typing import Any, Dict, Type, Iterable, TypeVar, ClassVar, cast, get_type_hints
+from typing import Any, Dict, Type, Iterable, TypeVar, ClassVar, cast, get_type_hints, Tuple
 
 from venom.fields import FieldDescriptor, create_field_from_type_hint
 from venom.util import meta
@@ -31,12 +31,12 @@ class MessageMeta(ABCMeta):
         cls.__fields__ = OrderedDict(getattr(cls, '__fields__') or ())
         cls.__meta__, meta_changes = meta(bases, members)
         cls.__meta__.protocols = {}
+        cls.__meta__.validators = {}
 
         if not meta_changes.get('name', None):
             cls.__meta__.name = name
 
         # FIXME support self-referential type hints
-        # TODO support Repeat[str] and Map[str, type] annotations
         for name, hint in get_type_hints(cls).items():
             if not name.startswith('_'):
                 field_descriptor = create_field_from_type_hint(hint, name=name)
@@ -52,7 +52,7 @@ class MessageMeta(ABCMeta):
         return cls
 
 
-class Message(object, metaclass=MessageMeta):
+class Message(Mapping, metaclass=MessageMeta):
     __slots__ = ('_values',)  # TODO slot message fields directly.
     # TODO change to tuple (FieldDescriptor would need FieldDescriptor.attribute attribute.)
     __fields__: ClassVar[Dict[str, FieldDescriptor]] = None
@@ -62,6 +62,7 @@ class Message(object, metaclass=MessageMeta):
         name = None
         one_of_groups = ()
         protocols = None
+        validators = None
 
     def __init__(self, *args, **kwargs):
         if args:
@@ -126,16 +127,22 @@ def fields(message: Type[Message]) -> Iterable[FieldDescriptor]:
     return tuple(message.__fields__.values())
 
 
-def field_names(message: Type[Message]) -> Iterable[FieldDescriptor]:
+def field_names(message: Type[Message]) -> Iterable[str]:
     return tuple(field.name for field in message.__fields__.values())
-
-
-def is_empty(message: Type[Message]) -> bool:
-    return not fields(message)
 
 
 _M = TypeVar('M', bound=Message)
 
+
+def merge_into(message: _M, *others: _M):
+    for other in others:
+        for name, value in items(other):
+            message[name] = value
+    return message
+
+
+def is_empty(message: Type[Message]) -> bool:
+    return not fields(message)
 
 def from_object(message: Type[_M], obj: Any) -> _M:
     kwargs = {}
