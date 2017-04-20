@@ -263,8 +263,10 @@ def magic_normalize(func: Callable[..., Any],
     wrap_kwargs = lambda req: {}
 
     if unpack_request is True:
+        req_field_names = field_names(request)
+
         wrap_args = lambda req: ()
-        wrap_kwargs = lambda req: to_dict(req)
+        wrap_kwargs = lambda req: {f: req.get(f) for f in req_field_names}
     elif unpack_request is False:
         if request_converter:
             wrap_args = lambda req: (request_converter.resolve(req),)
@@ -286,6 +288,7 @@ def magic_normalize(func: Callable[..., Any],
 
         @wraps(func)
         async def func(*args, **kwargs):
+            print(args, kwargs, unpack_request)
             return func_(*args, **kwargs)
 
     # TODO (optimization) do not wrap what does not need to be wrapped

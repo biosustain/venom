@@ -126,6 +126,7 @@ class InspectionTestCase(AioTestCase):
         inspect = magic_normalize(func, request=IntegerValue)
         self.assertEqual(inspect.response, IntegerValue)
         self.assertEqual(inspect.request, IntegerValue)
+        self.assertEqual(await inspect.invokable(None, IntegerValue()), IntegerValue(0))
         self.assertEqual(await inspect.invokable(None, IntegerValue(42)), IntegerValue(42))
 
         def func(self) -> IntegerValue:
@@ -205,6 +206,19 @@ class InspectionTestCase(AioTestCase):
         self.assertEqual(inspect.response, IntegerValue)
         self.assertEqual(inspect.request, IntegerValue)
 
+    async def test_magic_request_message_auto_unpack(self):
+        def func(self, value: str) -> StringValue:
+            return StringValue(value)
+
+        inspect = magic_normalize(func, auto_generate_request=True)
+        self.assertEqual(inspect.response, StringValue)
+        self.assertEqual(inspect.request.__meta__.name, 'FuncRequest')
+        self.assertEqual(fields(inspect.request), (
+            String(name='value'),
+        ))
+        # TODO StringValue() should be equal to StringValue('')
+        self.assertEqual(await inspect.invokable(None, inspect.request()), StringValue(''))
+        self.assertEqual(await inspect.invokable(None, inspect.request('foo')), StringValue('foo'))
 
     @SkipTest
     def test_magic_request_message_autogenerate(self):

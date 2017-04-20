@@ -1,7 +1,8 @@
 from venom import Empty
 from venom.common import StringValue
-from venom.rpc import RequestContext, Venom
+from venom.rpc import RequestContext, Venom, http
 from venom.rpc import rpc, Service
+from venom.rpc.inspection import schema
 from venom.rpc.test_utils import AioTestCase
 
 
@@ -43,3 +44,20 @@ class ServiceTestCase(AioTestCase):
             RequestContext.current()['sound'] = 'hiss'
 
         self.assertEqual(await venom.invoke(SnakeService.sound, Empty()), StringValue('hiss'))
+
+    async def test_service_rpc_auto(self):
+        class GreeterService(Service):
+            @http.GET('.', auto=True)
+            def say_hello(self, name: str) -> str:
+                if not name:
+                    return 'Hi!'
+                return f'Hi {name}!'
+
+        venom = Venom()
+        venom.add(GreeterService)
+
+        self.assertEqual(await GreeterService().say_hello(GreeterService.say_hello.request()),
+                         StringValue('Hi!'))
+
+        self.assertEqual(await GreeterService().say_hello(GreeterService.say_hello.request(name='Alice')),
+                         StringValue('Hi Alice!'))

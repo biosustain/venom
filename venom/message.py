@@ -145,6 +145,7 @@ def merge_into(message: _M, *others: _M):
 def is_empty(message: Type[Message]) -> bool:
     return not fields(message)
 
+
 def from_object(message: Type[_M], obj: Any) -> _M:
     kwargs = {}
 
