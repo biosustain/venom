@@ -288,7 +288,6 @@ def magic_normalize(func: Callable[..., Any],
 
         @wraps(func)
         async def func(*args, **kwargs):
-            print(args, kwargs, unpack_request)
             return func_(*args, **kwargs)
 
     # TODO (optimization) do not wrap what does not need to be wrapped
