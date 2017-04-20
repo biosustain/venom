@@ -36,8 +36,9 @@ class MessageMeta(ABCMeta):
         if not meta_changes.get('name', None):
             cls.__meta__.name = name
 
+
         # FIXME support self-referential type hints
-        for name, hint in get_type_hints(cls).items():
+        for name, hint in cls.__annotations__.items():
             if not name.startswith('_'):
                 field_descriptor = create_field_from_type_hint(hint, name=name)
                 setattr(cls, name, field_descriptor)
