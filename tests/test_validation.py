@@ -4,10 +4,12 @@ from venom.common import IntegerValue
 from venom.exceptions import ValidationError
 from venom.fields import Field, RepeatField
 from venom.message import Message
+from venom.rpc import Service, rpc
+from venom.rpc.test_utils import AioTestCase
 from venom.validation import Schema, MessageValidator
 
 
-class ValidationTestCase(TestCase):
+class ValidationTestCase(AioTestCase):
 
     def test_validate_string_length(self):
         class HelloRequest(Message):
@@ -57,3 +59,22 @@ class ValidationTestCase(TestCase):
 
         self.assertEquals(ctx.exception.args[0], f"{repr(['xxx' for _ in range(10)])} is too long")
         self.assertEquals(ctx.exception.path, ['names'])
+
+    async def test_validate_method(self):
+        class HelloRequest(Message):
+            name = Field(str, schema=Schema(min_length=3, max_length=5))
+
+        class HelloResponse(Message):
+            message: str
+
+        class GreeterService(Service):
+            @rpc
+            def say_hello(self, request: HelloRequest) -> HelloResponse:
+                return HelloResponse(f'Hello {request.name}!')
+
+        greeter = GreeterService()
+
+        await greeter.say_hello(HelloRequest('Alice'))
+
+        with self.assertRaises(ValidationError):
+            await greeter.say_hello(HelloRequest('Bo'))

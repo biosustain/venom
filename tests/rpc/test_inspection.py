@@ -3,12 +3,15 @@ from typing import List, Dict, NewType, Any
 from unittest import SkipTest
 
 from venom import Empty, Message
-from venom.common import Int64ValueConverter, Int32ValueConverter, IntegerValueConverter, StringValueConverter
+from venom.common import Int64ValueConverter, Int32ValueConverter, IntegerValueConverter, StringValueConverter, Field
 from venom.common import IntegerValue, StringValue
+from venom.exceptions import ValidationError
 from venom.fields import Int64, String, repeated, Integer, Map, MapField
-from venom.rpc.inspection import magic_normalize, dynamic
+from venom.message import fields
+from venom.rpc.inspection import magic_normalize, dynamic, schema
 from venom.rpc.resolver import Resolver
 from venom.rpc.test_utils import AioTestCase
+from venom.validation import Schema
 
 
 class InspectionTestCase(AioTestCase):
@@ -202,6 +205,7 @@ class InspectionTestCase(AioTestCase):
         self.assertEqual(inspect.response, IntegerValue)
         self.assertEqual(inspect.request, IntegerValue)
 
+
     @SkipTest
     def test_magic_request_message_autogenerate(self):
         # TODO
@@ -221,6 +225,19 @@ class InspectionTestCase(AioTestCase):
         # # self.assertEqual(inspect.response, IntegerValue)
         # self.assertEqual(inspect.request, IntegerValue)
         # self.assertEqual(inspect.invokable(None, IntegerValue(42)), IntegerValue(42))
+
+    async def test_magic_request_message_auto_schema(self):
+        @schema('a', minimum=5)
+        def func(self, a: int) -> IntegerValue:
+            return IntegerValue(a)
+
+        inspect = magic_normalize(func, auto_generate_request=True)
+        self.assertEqual(inspect.response, IntegerValue)
+        self.assertEqual(fields(inspect.request), (
+            Field(int, name='a'),
+        ))
+        self.assertEqual(inspect.request.a.schema, Schema(minimum=5))
+        self.assertEqual(await inspect.invokable(None, inspect.request(5)), IntegerValue(5))
 
     async def test_magic_specified_resolver_args(self):
         Foo = namedtuple('Foo', ['service', 'request'])

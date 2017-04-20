@@ -7,10 +7,11 @@ from typing import Tuple
 from typing import Union
 
 from venom.converter import Converter
-from venom.fields import RepeatField, MapField, Field, create_field_from_type_hint
+from venom.fields import create_field_from_type_hint
 from venom.message import Empty, Message, message_factory, field_names, to_dict
 from venom.rpc.resolver import Resolver
 from venom.util import upper_camelcase
+from venom.validation import Schema
 
 MessageFunction = NamedTuple('MessageFunction', [
     ('request', Type[Message]),
@@ -34,6 +35,30 @@ def dynamic(name: str, expression: Union[type, Callable[[Type[Any]], type]]) \
             func.__dynamic__ = {name: expression}
         else:
             func.__dynamic__[name] = expression
+        return func
+
+    return decorator
+
+
+def schema(name: str, **kwargs):
+    """
+
+    Example usage:::
+
+        @rpc(auto=True)
+        @schema('name', min_length=5)
+        def say_hello(self, name: str):
+            pass
+
+    :param name: 
+    :param kwargs: 
+    :return: 
+    """
+    def decorator(func):
+        if not hasattr(func, '__schema__'):
+            func.__schema__ = {name: Schema(**kwargs)}
+        else:
+            func.__schema__[name] = Schema(**kwargs)
         return func
 
     return decorator
@@ -81,6 +106,9 @@ def magic_normalize(func: Callable[..., Any],
 
     func_signature = signature(func)
     func_type_hints = _get_func_type_annotations(func, owner)
+
+    # TODO raise error/warning if schema is defined but not used
+    func_param_schemas = getattr(func, '__schema__', {})
 
     if len(func_signature.parameters) == 0:
         # no "self" parameter: func()
@@ -177,11 +205,14 @@ def magic_normalize(func: Callable[..., Any],
                         param_type = param_type.__supertype__
 
                     if param.default is Parameter.empty:
-                        message_fields[name] = create_field_from_type_hint(param_type, converters=converters)
+                        message_fields[name] = create_field_from_type_hint(param_type,
+                                                                           converters=converters,
+                                                                           schema=func_param_schemas.get(name))
                     else:
                         message_fields[name] = create_field_from_type_hint(param_type,
                                                                            converters=converters,
-                                                                           default=param.default)
+                                                                           default=param.default,
+                                                                           schema=func_param_schemas.get(name))
 
                 request = message_factory(f'{upper_camelcase(func_name)}Request', message_fields)
     else:  # func(self)

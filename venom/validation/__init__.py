@@ -2,11 +2,11 @@ from abc import ABC, abstractmethod
 from functools import partial
 from weakref import WeakKeyDictionary
 
-from typing import Type, TypeVar, Callable, Any, Tuple, Union, Mapping
+from typing import Type, TypeVar, Callable, Any, Tuple, Union
 
 from venom import Message
 from venom.exceptions import ValidationError
-from venom.fields import FieldDescriptor, Repeat
+from venom.fields import FieldDescriptor
 from venom.message import fields, merge_into
 from venom.validation._validators import min_length, max_length, pattern, min_items, max_items, minimum, maximum
 from .schema import Schema
@@ -14,8 +14,8 @@ from .schema import Schema
 M = TypeVar('M', bound=Message)
 
 
-def _get_field_schema(field: FieldDescriptor, extension: Schema = None) -> Schema:
-    return merge_into(Schema(), Schema.lookup(field.type), field.schema or Schema(), extension or Schema())
+def _get_field_schema(field: FieldDescriptor) -> Schema:
+    return merge_into(Schema(), Schema.lookup(field.type), field.schema or Schema())
 
 
 class _MessageValidator(ABC):
@@ -42,23 +42,20 @@ class _MessageValidator(ABC):
 
 
 class MessageValidator(_MessageValidator):
+    def __init__(self, msg: Type[M]):
+        super().__init__(msg)
 
-    def __init__(self, msg: Type[M], *, field_schema_extensions: Mapping[str, Schema] = None):
-        super().__init__(msg, register=field_schema_extensions is None)
+        # TODO only create validators where the schema is not empty
 
-        if field_schema_extensions is None:
-            field_schema_extensions = {}
-
-        self._field_validators = tuple((field.name,
-                                        _FieldValidator(field,
-                                                        _get_field_schema(field,
-                                                                          field_schema_extensions.get(field.name))))
-                                       for field in fields(msg))
+        field_schemas = ((field, _get_field_schema(field)) for field in fields(msg))
+        self._field_validators = tuple((field.name, _FieldValidator(field, schema))
+                                       for field, schema in field_schemas
+                                       if schema != Schema())
 
     def validate(self, message: M) -> None:
         for name, validator in self._field_validators:
             try:
-                validator.validate(message[name])
+                validator.validate(message.get(name))
             except ValidationError as v:
                 v.path.insert(0, name)
                 raise v
@@ -86,6 +83,9 @@ class _FieldValidator(object):
     @classmethod
     def _get_validations(cls, field: FieldDescriptor, schema: Schema) -> Tuple[_ValidationFunction, ...]:
         validations = ()
+
+        if schema == Schema():
+            return ()
 
         if issubclass(field.type, Message):
             validator = MessageValidator(field.type)

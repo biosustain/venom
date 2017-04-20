@@ -11,6 +11,7 @@ from venom.exceptions import NotImplemented_
 from venom.message import Message, Empty, field_names
 from venom.rpc.inspection import magic_normalize
 from venom.rpc.resolver import Resolver
+from venom.validation import MessageValidator
 
 _RULE_PARAMETER_RE = re.compile('\{([^}:]+)(:[^}]*)?\}')
 
@@ -165,6 +166,7 @@ class Method(Generic[S, Req, Res], MethodDescriptor[Req, Res]):
                          http_status=http_status,
                          **options)
         self.service = service
+        self._request_validator = MessageValidator(request)
 
     def http_path_parameters(self) -> Set[str]:
         return set(m.group(1) for m in re.finditer(_RULE_PARAMETER_RE, self.http_path or ''))
@@ -190,6 +192,9 @@ class Method(Generic[S, Req, Res], MethodDescriptor[Req, Res]):
         else:
             locations[HTTPFieldLocation.QUERY] = remaining
         return locations
+
+    def validate(self, request: Req):
+        self._request_validator.validate(request)
 
     # TODO Error handling. Only errors that are venom.exceptions.Error instances should be raised
     async def invoke(self, instance: S, request: Req, loop: 'asyncio.AbstractEventLoop' = None) -> Res:
@@ -329,6 +334,8 @@ class ServiceMethod(Method[S, Req, Res]):
                              **self.options)
 
     async def invoke(self, instance: S, request: Message, loop: 'asyncio.AbstractEventLoop' = None):
+        self.validate(request)
+
         try:
             return await self.implementation(instance, request, loop=loop)
         except NotImplementedError:

@@ -1,7 +1,7 @@
 from importlib import import_module
 
 from typing import TypeVar, Generic, Any, Union, Type, Sequence, List, Mapping, Iterable, Tuple, MutableMapping, \
-    Iterator, Dict, MutableSequence, overload, Optional
+    Iterator, Dict, MutableSequence, overload
 
 from venom.util import cached_property, AttributeDict, camelcase
 
@@ -363,24 +363,26 @@ def map_(field: Union[FieldDescriptor, type, str], key_type: Type[_KT] = str, na
 def create_field_from_type_hint(hint,
                                 converters: Sequence['venom.converter.Converter'] = (),
                                 default: Any = None,
-                                name: str = None):
+                                name: str = None,
+                                *,
+                                schema: 'venom.validator.Schema' = None):
     if hint in (bool, int, float, str, bytes):
-        return Field(hint, default=default, name=name)
+        return Field(hint, default=default, name=name, schema=schema)
 
     for converter in converters:
         if converter.python == hint:
-            return ConverterField(converter, name=name)
+            return ConverterField(converter, name=name, schema=schema)
 
     # TODO type_ != Any is a workaround for https://github.com/python/typing/issues/345
     if hint != Any:
         if hasattr(hint, '__origin__') and hint.__origin__ is Repeat or issubclass(hint, List):
-            return repeated(create_field_from_type_hint(hint.__args__[0]), name=name)
+            return repeated(create_field_from_type_hint(hint.__args__[0], schema=schema), name=name)
         if hasattr(hint, '__origin__') and hint.__origin__ is Map:
-            return map_(create_field_from_type_hint(hint.__args__[1]), hint.__args__[0], name=name)
+            return map_(create_field_from_type_hint(hint.__args__[1], schema=schema), hint.__args__[0], name=name)
 
     from venom import Message
     # TODO type_ != Any is a workaround for https://github.com/python/typing/issues/345
     if hint != Any and issubclass(hint, Message):
-        return Field(hint, name=name)
+        return Field(hint, name=name, schema=schema)
 
     raise NotImplementedError(f"Unable to generate field for {hint}")

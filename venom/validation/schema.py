@@ -1,10 +1,8 @@
 from typing import ClassVar, Mapping, Union, Type, List
 
 from venom import Message
-from venom.common import NumberValue, IntegerValue, Value
+from venom.common import Value
 from venom.common.fields import NullableField
-from venom.common.types import JSONValue
-from venom.fields import repeated, Map, Field
 
 
 class Schema(Message):
@@ -60,27 +58,3 @@ class Schema(Message):
             return cls.__python_type_schemas[target]
         except KeyError:
             return Schema()
-
-
-def schema(name: str, **kwargs):
-    """
-
-    Example usage:::
-
-        @rpc(auto=True)
-        @schema('name', min_length=5)
-        def say_hello(self, name: str):
-            pass
-
-    :param name: 
-    :param kwargs: 
-    :return: 
-    """
-    def decorator(func):
-        if not hasattr(func, '__schema__'):
-            func.__schema__ = {name: Schema(**kwargs)}
-        else:
-            func.__schema__[name] = Schema(**kwargs)
-        return func
-
-    return decorator

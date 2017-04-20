@@ -5,6 +5,7 @@ from typing import Type, Union, Iterable, ClassVar, TypeVar, overload, Mapping
 
 from venom.rpc.context import RequestContext, DictRequestContext
 from venom.rpc.stub import Stub
+from venom.validation import MessageValidator
 from .method import rpc, http, Method
 from .proxy import ServiceProxy, proxy
 from .service import Service
