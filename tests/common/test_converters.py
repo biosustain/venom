@@ -4,7 +4,7 @@ from unittest import TestCase
 
 from venom import Message
 from venom.common import Timestamp
-from venom.common.fields import DateTime
+from venom.common.fields import DateTime, NullableField
 from venom.converter import Converter
 from venom.fields import ConverterField
 
@@ -48,3 +48,21 @@ class ConverterFieldsTestCase(TestCase):
         message.int_id = '42'
         self.assertEqual(message.get('int_id'), 42)
 
+    def test_nullable(self):
+        class Foo(Message):
+            nullable_string = NullableField(str)
+
+        message = Foo()
+        self.assertEquals(message.nullable_string, None)
+
+        message.nullable_string = 's'
+        self.assertEquals(message.nullable_string, 's')
+
+        message.nullable_string = None
+        self.assertEquals(message.nullable_string, None)
+
+        message = Foo('s')
+        self.assertEquals(message.nullable_string, 's')
+
+        message = Foo(nullable_string='s')
+        self.assertEquals(message.nullable_string, 's')

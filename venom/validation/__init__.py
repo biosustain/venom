@@ -93,14 +93,14 @@ class _FieldValidator(object):
         elif field.type in (str, bytes):
             if schema.min_length > 0:
                 validations += partial(min_length, schema),
-            if schema.max_length > 0:
+            if schema.max_length is not None:
                 validations += partial(max_length, schema),
             if schema.pattern:
                 validations += partial(pattern, schema),
         elif field.type in (int, float):
-            if schema.minimum > 0:
+            if schema.minimum is not None:
                 validations += partial(minimum, schema),
-            if schema.maximum > 0:
+            if schema.maximum is not None:
                 validations += partial(maximum, schema),
         else:
             raise NotImplementedError
@@ -112,9 +112,9 @@ class _FieldValidator(object):
             if field.key_type:
                 raise NotImplementedError
             else:
-                if schema.min_items and schema.max_items.value > 0:
+                if schema.min_items > 0:
                     validations += partial(min_items, schema),
-                if schema.max_items and schema.max_items.value > 0:
+                if schema.max_items is not None:
                     validations += partial(max_items, schema),
 
             if value_validations:

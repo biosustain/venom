@@ -1,7 +1,7 @@
 from importlib import import_module
 
 from typing import TypeVar, Generic, Any, Union, Type, Sequence, List, Mapping, Iterable, Tuple, MutableMapping, \
-    Iterator, Dict, MutableSequence, overload
+    Iterator, Dict, MutableSequence, overload, Optional
 
 from venom.util import cached_property, AttributeDict, camelcase
 

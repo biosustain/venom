@@ -1,6 +1,6 @@
 from typing import Dict, ClassVar, Type
 
-from venom.common import IntegerValueConverter, BooleanValueConverter, DateTimeConverter, DateConverter
+from venom.common import IntegerValueConverter, BoolValueConverter, DateTimeConverter, DateConverter
 from venom.common import StringValueConverter, NumberValueConverter
 from venom.rpc.context import RequestContextDescriptor
 from venom.rpc.method import Method, MethodDescriptor
@@ -100,7 +100,7 @@ class Service(object, metaclass=ServiceMeta):
             StringValueConverter,
             IntegerValueConverter,
             NumberValueConverter,
-            BooleanValueConverter,
+            BoolValueConverter,
             DateTimeConverter,
             DateConverter)
         stub = None

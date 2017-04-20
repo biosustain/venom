@@ -34,7 +34,7 @@ class ValidationTestCase(TestCase):
         class HelloRequest(Message):
             names = RepeatField(str, schema=Schema(min_length=3,
                                                    max_length=5,
-                                                   max_items=IntegerValue(5)))
+                                                   max_items=5))
 
         validator = MessageValidator(HelloRequest)
 

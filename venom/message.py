@@ -66,14 +66,14 @@ class Message(Mapping, metaclass=MessageMeta):
         validators = None
 
     def __init__(self, *args, **kwargs):
+        self._values = {}
         if args:
-            self._values = {}
-            for value, key in zip(args, self.__fields__.keys()):
-                self[key] = value
-            for key, value in kwargs.items():
-                self[key] = value
-        else:
-            self._values = {key: value for key, value in kwargs.items() if value is not None}
+            for value, field in zip(args, self.__fields__.values()):
+                if value is not None:
+                    field.__set__(self, value)
+        for key, value in kwargs.items():
+            if value is not None:
+                self.__fields__[key].__set__(self, value)
 
     def get(self, key, default=None):
         try:

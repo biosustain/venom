@@ -2,6 +2,7 @@ from typing import ClassVar, Mapping, Union, Type, List
 
 from venom import Message
 from venom.common import NumberValue, IntegerValue, Value
+from venom.common.fields import NullableField
 from venom.common.types import JSONValue
 from venom.fields import repeated, Map, Field
 
@@ -9,23 +10,23 @@ from venom.fields import repeated, Map, Field
 class Schema(Message):
     __python_type_schemas: ClassVar[Mapping[type, 'Schema']] = {}
 
-    minimum: NumberValue
-    maximum: NumberValue
+    minimum = NullableField(float)
+    maximum = NullableField(float)
 
     exclusive_minimum: bool
     exclusive_maximum: bool
 
     min_length: int
-    max_length: IntegerValue
+    max_length = NullableField(int)
 
     pattern: str
 
     min_items: int
-    max_items: IntegerValue
+    max_items = NullableField(int)
     unique_items: bool
 
     min_properties: int
-    max_properties: IntegerValue
+    max_properties = NullableField(int)
 
     enum: List[Value]
 
@@ -76,5 +77,10 @@ def schema(name: str, **kwargs):
     :return: 
     """
     def decorator(func):
+        if not hasattr(func, '__schema__'):
+            func.__schema__ = {name: Schema(**kwargs)}
+        else:
+            func.__schema__[name] = Schema(**kwargs)
         return func
+
     return decorator

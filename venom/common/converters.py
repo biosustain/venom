@@ -1,7 +1,7 @@
 import calendar
 import datetime
 
-from typing import TypeVar
+from typing import TypeVar, Optional
 
 from venom.common.messages import Int64Value, Int32Value, StringValue, Float32Value, Float64Value, BoolValue, Timestamp, \
     BytesValue
@@ -15,7 +15,7 @@ class _ValueConverter(Converter[V, T]):
     def resolve(self, message: V) -> T:
         return message.value
 
-    def format(self, value: T) -> V:
+    def format(self, value: Optional[T]) -> V:
         return self.wire(value=value)
 
 
@@ -29,7 +29,7 @@ class BytesValueConverter(_ValueConverter[BytesValue, bytes]):
     python = bytes
 
 
-class BooleanValueConverter(_ValueConverter[StringValue, bool]):
+class BoolValueConverter(_ValueConverter[StringValue, bool]):
     wire = BoolValue
     python = bool
 

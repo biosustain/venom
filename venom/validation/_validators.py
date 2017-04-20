@@ -40,10 +40,10 @@ def pattern(schema, instance):
 
 
 def min_items(schema, instance):
-    if len(instance) < schema.min_items.value:
+    if len(instance) < schema.min_items:
         raise ValidationError('{!r} is too short'.format(instance))
 
 
 def max_items(schema, instance):
-    if len(instance) > schema.max_items.value:
+    if len(instance) > schema.max_items:
         raise ValidationError('{!r} is too long'.format(instance))
