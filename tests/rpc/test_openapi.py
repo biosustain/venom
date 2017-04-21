@@ -164,7 +164,6 @@ class OpenAPITestCase(TestCase):
         reflect.add(PetMapping)
         reflect.add(ReflectService)
         schema = make_openapi_schema(reflect)
-        protocol = JSON(OpenAPISchema)
         response = SchemaMessage(
             description='Information about pets',
             type='object',
