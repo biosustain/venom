@@ -8,6 +8,7 @@ from venom.protocol import JSONProtocol
 from venom.rpc import Service, http, Venom
 from venom.rpc.reflect.openapi import make_openapi_schema, OpenAPISchema, \
     SchemaMessage
+import json
 from venom.rpc.reflect.reflect import Reflect
 from venom.rpc.reflect.service import ReflectService
 from venom.rpc.reflect.stubs import ParameterMessage, ResponseMessage
@@ -18,7 +19,7 @@ TEST_DIR = os.path.dirname(__file__)
 class OpenAPITestCase(TestCase):
     def test_openapi_simple(self):
         class PetSimple(Message):
-            id = Int()
+            id: int
 
         class PetServiceSimple(Service):
             class Meta:
@@ -143,6 +144,9 @@ class OpenAPITestCase(TestCase):
             pet_id = String(description='Pet ID to query')
 
         class QueryResponse(Message):
+            class Meta:
+                description = 'Information about pets'
+
             ids = repeated(Field(Pet, description='Bunch of pets'))
             pet = Field(Pet, description='The other pet')
             repeat = repeated(String(description='Bunch of strings'))
@@ -160,7 +164,9 @@ class OpenAPITestCase(TestCase):
         reflect.add(PetMapping)
         reflect.add(ReflectService)
         schema = make_openapi_schema(reflect)
+        protocol = JSON(OpenAPISchema)
         response = SchemaMessage(
+            description='Information about pets',
             type='object',
             properties=dict(
                 ids=SchemaMessage(
@@ -176,7 +182,6 @@ class OpenAPITestCase(TestCase):
                 ),
             ),
         )
-        print(schema.definitions['QueryResponse'])
         self.assertEqual(schema.definitions['QueryResponse'], response)
 
     def test_venom_info(self):

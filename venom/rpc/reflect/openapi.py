@@ -139,6 +139,7 @@ def response_message(method: Method) -> ResponseMessage:
 
 def operation_message(method: Method) -> OperationMessage:
     return OperationMessage(
+        summary=method.options.get(DESCRIPTION, ''),
         responses=ResponsesMessage(default=response_message(method)),
         parameters=list(chain(
             parameters_body(method),

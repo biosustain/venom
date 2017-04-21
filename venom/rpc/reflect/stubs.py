@@ -1,5 +1,5 @@
 from venom import Message
-from venom.fields import Field, repeated, String, Map, Bool, MapField, Repeat
+from venom.fields import Field, String, Map, MapField, Repeat
 from venom.rpc import Stub
 from venom.rpc import http
 
@@ -34,6 +34,8 @@ class ResponsesMessage(Message):
 
 
 class OperationMessage(Message):
+    summary: str
+    tags: Repeat[str]
     produces: Repeat[str]
     responses: ResponsesMessage
     parameters: Repeat[ParameterMessage]
@@ -58,11 +60,17 @@ class PathsMessage(Message):
     patch: OperationMessage
 
 
+class Tag(Message):
+    name: str
+    description: str
+
+
 class OpenAPISchema(Message):
     swagger: str
     schemes: Repeat[str]
     consumes: Repeat[str]
     produces: Repeat[str]
+    tags: Repeat[Tag]
     info: InfoMessage
     host: str
     base_path: str

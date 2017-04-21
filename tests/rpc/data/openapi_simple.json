@@ -16,6 +16,7 @@
     "paths": {
         "/petservice/pet/{id}": {
             "get": {
+                "summary": "",
                 "responses": {
                     "default": {
                         "description": "",
@@ -36,6 +37,7 @@
         },
         "/petservice/pet": {
             "post": {
+                "summary": "",
                 "responses": {
                     "default": {
                         "description": "",
