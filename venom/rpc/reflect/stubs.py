@@ -33,12 +33,20 @@ class ResponsesMessage(Message):
     default: ResponseMessage  # TODO: error codes
 
 
+class ExternalDocsMessage(Message):
+    description: str
+    url: str
+
+
 class OperationMessage(Message):
     summary: str
+    description: str
     tags: Repeat[str]
     produces: Repeat[str]
     responses: ResponsesMessage
     parameters: Repeat[ParameterMessage]
+    deprecated: bool
+    external_docs: ExternalDocsMessage
 
 
 class InfoMessage(Message):
@@ -60,7 +68,7 @@ class PathsMessage(Message):
     patch: OperationMessage
 
 
-class Tag(Message):
+class TagMessage(Message):
     name: str
     description: str
 
@@ -70,7 +78,7 @@ class OpenAPISchema(Message):
     schemes: Repeat[str]
     consumes: Repeat[str]
     produces: Repeat[str]
-    tags: Repeat[Tag]
+    tags: Repeat[TagMessage]
     info: InfoMessage
     host: str
     base_path: str
