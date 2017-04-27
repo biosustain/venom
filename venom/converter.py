@@ -31,17 +31,17 @@ _O = TypeVar('T')
 
 
 class ObjectAttrMapper(Generic[_M, _O]):
-    def __init__(self, message_cls: Type[_M], object_cls: Callable[[], _O] = None, **converters: Converter):
+    def __init__(self, message_cls: Type[_M], object_cls: Callable[[], _O] = None, **attr_converters: Converter):
         self._object_cls = object_cls
         self._message_cls = message_cls
-        self._converters = converters
+        self._attr_converters = attr_converters
 
     def resolve(self, msg: _M, obj: _O) -> _O:
         if obj is None:
             obj = self._object_cls()
 
         for name, value in items(msg):
-            converter = self._converters.get(name)
+            converter = self._attr_converters.get(name)
             if converter:
                 value = converter.resolve(value)
             setattr(obj, name, value)
@@ -52,8 +52,8 @@ class ObjectAttrMapper(Generic[_M, _O]):
         msg = self._message_cls()
         for name in field_names(self._message_cls):
             value = getattr(obj, name, None)
-            converter = self._converters.get(name)
-            if value and converter:
+            converter = self._attr_converters.get(name)
+            if value is not None and converter:
                 value = converter.format(value)
             msg[name] = value
         return msg
