@@ -102,7 +102,7 @@ def parameters_body(method: Method) -> list:
     if fields == method.request.__fields__:
         param = dict(
             name=method.request.__meta__.name,
-            schema=ref_schema_message(method.response)
+            schema=ref_schema_message(method.request)
         )
     else:
         param = dict(
