@@ -92,7 +92,6 @@ class JSON(DictProtocol):
 
     def __init__(self, fmt: Type[Message], field_names_: Set[str] = None):
         super().__init__(fmt, field_names_)
-        # TODO camelCase conversion
         self.field_encoders = {(field.name, field.json_name): self._field_encoder(field) for field in self._fields}
         self.field_decoders = {(field.name, field.json_name): self._field_decoder(field) for field in self._fields}
 
@@ -220,7 +219,7 @@ class URIString(JSON):
             raise NotImplementedError(f'Unable to decode {field} from URI string')
 
         if not isinstance(field, Field):
-            raise NotImplementedError()
+            raise NotImplementedError(f'Unable to decode {field} from URI string')
 
         if issubclass(field.type, Message):
             raise NotImplementedError(f'Unable to decode {field} from URI string')
@@ -239,7 +238,7 @@ class URIString(JSON):
             raise NotImplementedError(f'Unable to decode {field} from URI string')
 
         if not isinstance(field, Field):
-            raise NotImplementedError()
+            raise NotImplementedError(f'Unable to decode {field} from URI string')
 
         if issubclass(field.type, Message):
             raise NotImplementedError(f'Unable to decode {field} from URI string')

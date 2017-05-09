@@ -7,7 +7,7 @@ from typing import Iterable
 from venom import Message
 from venom.fields import FieldDescriptor
 from venom.message import fields, is_empty
-from venom.protocol import URIString
+from venom.protocol import JSON
 from venom.rpc.method import Method, HTTPFieldLocation
 from venom.rpc.reflect.reflect import Reflect
 from venom.rpc.reflect.stubs import OperationMessage, \
@@ -67,31 +67,30 @@ def schema_message(field: FieldDescriptor) -> SchemaMessage:
 
 
 def parameters_at_location(request: Message, names: Iterable, default: dict):
+    protocol = JSON(SchemaMessage)
+
     for field_name in names:
         field = getattr(request, field_name)
         field_schema = schema_message(field)
-        protocol = URIString(type(field_schema))
+
         yield ParameterMessage(
-            name=field.name,
+            name=field.json_name,
             **default,
-            **protocol.encode(field_schema),
-        )
+            **protocol.encode(field_schema))
 
 
 def parameters_path(method: Method) -> Iterable:
     return parameters_at_location(
         method.request,
         method.http_path_parameters(),
-        PATH_PARAMETER
-    )
+        PATH_PARAMETER)
 
 
 def parameters_query(method: Method) -> Iterable:
     return parameters_at_location(
         method.request,
         method.http_field_locations()[HTTPFieldLocation.QUERY],
-        QUERY_PARAMETER
-    )
+        QUERY_PARAMETER)
 
 
 def parameters_body(method: Method) -> list:
@@ -102,21 +101,18 @@ def parameters_body(method: Method) -> list:
     if fields == method.request.__fields__:
         param = dict(
             name=method.request.__meta__.name,
-            schema=ref_schema_message(method.request)
-        )
+            schema=ref_schema_message(method.request))
     else:
         param = dict(
             name=method.name + '_body',
-            schema=schema_for_fields(fields.values())
-        )
+            schema=schema_for_fields(fields.values()))
     return [ParameterMessage(**BODY_PARAMETER, **param)]
 
 
 def response_message(method: Method) -> ResponseMessage:
     return ResponseMessage(
         description=method.options.get(DESCRIPTION, ''),
-        schema=ref_schema_message(method.response)
-    )
+        schema=ref_schema_message(method.response))
 
 
 def operation_message(method: Method) -> OperationMessage:
@@ -125,9 +121,7 @@ def operation_message(method: Method) -> OperationMessage:
         parameters=list(chain(
             parameters_body(method),
             parameters_path(method),
-            parameters_query(method)
-        ))
-    )
+            parameters_query(method))))
 
 
 def schema_for_fields(fields, description=None) -> SchemaMessage:
@@ -136,22 +130,21 @@ def schema_for_fields(fields, description=None) -> SchemaMessage:
         properties={
             v.json_name: schema_message(v) for v in fields
         },
-        description=description,
-    )
+        description=description)
 
 
 def schema_for_message(message: Message) -> SchemaMessage:
     return schema_for_fields(
         fields(message),
-        description=message.__meta__.get(DESCRIPTION)
-    )
+        description=message.__meta__.get(DESCRIPTION))
 
 
 def make_openapi_schema(reflect: Reflect) -> OpenAPISchema:
     paths = defaultdict(dict)
-    for path, group in groupby(reflect.methods, key=attrgetter('http_path')):
+    for path, group in groupby(reflect.methods, key=lambda method: method.format_http_path(json_names=True)):
         for method in group:
-            paths[path.strip('.')][method.http_method.value.lower()] = operation_message(method)
+            paths[path][method.http_method.value.lower()] = operation_message(method)
+
     definitions = {
         m.__meta__.name: schema_for_message(m) for m in reflect.messages
         if not is_empty(m)

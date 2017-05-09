@@ -168,6 +168,13 @@ class Method(Generic[S, Req, Res], MethodDescriptor[Req, Res]):
         self.service = service
         self._request_validator = MessageValidator(request)
 
+    def format_http_path(self, *, json_names: bool = False) -> str:
+        if json_names:
+            return re.sub(r'\{([^}]+)\}',
+                          lambda match: f'{{{self.request.__fields__[match.group(1)].json_name}}}',
+                          self.http_path)
+        return self.http_path
+
     def http_path_parameters(self) -> Set[str]:
         return set(m.group(1) for m in re.finditer(_RULE_PARAMETER_RE, self.http_path or ''))
 
