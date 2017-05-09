@@ -101,11 +101,12 @@ class FieldDescriptor(Generic[_VT]):
 
         if self.repeated:
             if self.key_type:
-                type_ = f'Map[{repr(self.key_type)}, {type_}]'
-            type_ = f'Repeat[{type_}]'
+                type_ = f'Map[{self.key_type.__qualname__}, {type_}]'
+            else:
+                type_ = f'Repeat[{type_}]'
 
         if self.name:
-            return f'<{self.__class__.__qualname__} {self.name} : {type_}>'
+            return f'<{self.__class__.__qualname__} {self.name}: {type_}>'
         return f'<{self.__class__.__qualname__} {type_}>'
 
     def __hash__(self):
