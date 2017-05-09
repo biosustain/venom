@@ -8,6 +8,7 @@ from typing import Callable, Any, Type, Union, Set, Dict, Sequence, Tuple, Await
 
 from venom.converter import Converter
 from venom.exceptions import NotImplemented_
+from venom.fields import Field, FieldDescriptor
 from venom.message import Message, Empty, field_names
 from venom.rpc.inspection import magic_normalize
 from venom.rpc.resolver import Resolver
@@ -168,12 +169,25 @@ class Method(Generic[S, Req, Res], MethodDescriptor[Req, Res]):
         self.service = service
         self._request_validator = MessageValidator(request)
 
-    def format_http_path(self, *, json_names: bool = False) -> str:
-        if json_names:
-            return re.sub(r'\{([^}]+)\}',
-                          lambda match: f'{{{self.request.__fields__[match.group(1)].json_name}}}',
-                          self.http_path)
-        return self.http_path
+    def format_http_path(self,
+                         *,
+                         json_names: bool = True,
+                         field_template_hook: Callable[[FieldDescriptor, str], str] = None,
+                         before_field_template: str = '{',
+                         after_field_template: str = '}') -> str:
+        parts = []
+        for i, part in enumerate(re.split(r'{([^}]+)}', self.http_path)):
+            if i % 2 == 1:  # every odd part is a path parameter
+                field = self.request.__fields__[part]
+                if json_names:
+                    part = field.json_name
+                if field_template_hook:
+                    part = field_template_hook(field, part)
+                parts.append(f'{before_field_template}{part}{after_field_template}')
+            else:
+                parts.append(part)
+
+        return ''.join(parts)
 
     def http_path_parameters(self) -> Set[str]:
         return set(m.group(1) for m in re.finditer(_RULE_PARAMETER_RE, self.http_path or ''))

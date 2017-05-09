@@ -10,6 +10,6 @@ class URIStringProtocolTestCase(TestCase):
             pet_id: int
 
         protocol = URIString(Pet)
-        self.assertEqual(protocol.encode(Pet(1)), {'pet_id': '1'})
-        self.assertEqual(protocol.decode({'pet_id': '42'}), Pet(42))
+        self.assertEqual(protocol.encode(Pet(1)), {'petId': '1'})
+        self.assertEqual(protocol.decode({'petId': '42'}), Pet(42))
         self.assertEqual(protocol.decode({}), Pet())

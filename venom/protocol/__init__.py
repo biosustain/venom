@@ -189,31 +189,6 @@ class JSON(DictProtocol):
 
 
 class URIString(JSON):
-    def encode(self, message: Message):
-        obj = {}
-        for (name, json_name), encode in self.field_encoders.items():
-            try:
-                obj[name] = encode(message[name])
-            except KeyError:
-                pass
-        return obj
-
-    def decode(self, instance: Any, message: Message = None) -> Message:
-        if not isinstance(instance, Mapping):
-            raise ValidationError(f"{repr(instance)} is not of type 'object'")
-
-        if message is None:
-            message = self._format()
-
-        for (name, json_name), decode in self.field_decoders.items():
-            if name in instance:
-                try:
-                    message[name] = decode(instance[name])
-                except ValidationError as e:
-                    e.path.insert(0, name)
-                    raise e
-        return message
-
     def _field_decoder(self, field: FieldDescriptor) -> Callable[[JSONValue], Any]:
         if isinstance(field, RepeatField):
             raise NotImplementedError(f'Unable to decode {field} from URI string')

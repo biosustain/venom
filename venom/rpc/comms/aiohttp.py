@@ -47,6 +47,12 @@ def _route_handler(venom: 'venom.rpc.Venom',
     return handler
 
 
+def _path_field_template(field, default):
+    if not field.repeated and field.type == int:
+        return f'{field.json_name}:\d+'
+    return default
+
+
 def create_app(venom: 'venom.rpc.Venom',
                app: web.Application = None,
                protocol_factory: Type[Protocol] = JSON):
@@ -55,7 +61,7 @@ def create_app(venom: 'venom.rpc.Venom',
 
     for method in venom.iter_methods():
         app.router.add_route(method.http_method.value,
-                             method.http_path,
+                             method.format_http_path(json_names=True, field_template_hook=_path_field_template),
                              _route_handler(venom, method, protocol_factory))
 
     return app

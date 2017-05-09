@@ -13,9 +13,12 @@ from venom.rpc.test_utils import mock_venom
 class AioHTTPSimpleServerTestCase(AioHTTPTestCase):
     def get_app(self):
         class Snake(Message):
-            id = Int64()
-            name = String()
-            size = Int32()
+            id: int
+            name: str
+            size: int
+
+        class GetSnakeRequest(Message):
+            snake_id: int
 
         class SnakeService(Service):
             @http.POST('.', request=Snake)
@@ -28,13 +31,13 @@ class AioHTTPSimpleServerTestCase(AioHTTPTestCase):
             def all_hiss(self) -> None:
                 pass
 
-            @http.POST('./{id:\d+}/hiss', request=Snake)
+            @http.POST('./{id}/hiss', request=Snake)
             def hiss(self, id: int) -> None:
                 pass
 
-            @http.GET('./{id:\d+}', request=Snake)
-            def read(self, id: int) -> Snake:
-                return Snake(id, f'Snek #{id}')
+            @http.GET('./{snake_id}', request=GetSnakeRequest)
+            def read(self, snake_id: int) -> Snake:
+                return Snake(snake_id, f'Snek #{snake_id}')
 
             # TODO support Repeat!
             # @http.GET('/')
