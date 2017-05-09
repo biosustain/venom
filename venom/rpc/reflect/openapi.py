@@ -7,7 +7,7 @@ from typing import Iterable
 from venom import Message
 from venom.fields import FieldDescriptor
 from venom.message import fields, is_empty
-from venom.protocol import JSON
+from venom.protocol import URIString
 from venom.rpc.method import Method, HTTPFieldLocation
 from venom.rpc.reflect.reflect import Reflect
 from venom.rpc.reflect.stubs import OperationMessage, \
@@ -70,9 +70,9 @@ def parameters_at_location(request: Message, names: Iterable, default: dict):
     for field_name in names:
         field = getattr(request, field_name)
         field_schema = schema_message(field)
-        protocol = JSON(type(field_schema))
+        protocol = URIString(type(field_schema))
         yield ParameterMessage(
-            name=field.json_name,
+            name=field.name,
             **default,
             **protocol.encode(field_schema),
         )
