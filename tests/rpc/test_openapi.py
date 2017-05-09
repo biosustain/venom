@@ -94,11 +94,11 @@ class OpenAPITestCase(TestCase):
 
         self.assertEqual(set(schema.paths.keys()), {'/pet', '/pet/{petId}'})
         self.assertEqual(list(schema.paths['/pet']['get'].parameters), [
-            ParameterMessage(is_in='query', name='petId', type='integer')
+            ParameterMessage(in_='query', name='petId', type='integer')
         ])
 
         self.assertEqual(list(schema.paths['/pet/{petId}']['get'].parameters), [
-            ParameterMessage(is_in='path', required=True, name='petId', type='integer')
+            ParameterMessage(in_='path', required=True, name='petId', type='integer')
         ])
 
     def test_nested_messages(self):

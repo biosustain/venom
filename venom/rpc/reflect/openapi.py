@@ -25,16 +25,16 @@ TYPE_TO_JSON = {
 }
 
 PATH_PARAMETER = {
-    'is_in': 'path',
+    'in_': 'path',
     'required': True
 }
 
 BODY_PARAMETER = {
-    'is_in': 'body',
+    'in_': 'body',
 }
 
 QUERY_PARAMETER = {
-    'is_in': 'query',
+    'in_': 'query',
 }
 
 

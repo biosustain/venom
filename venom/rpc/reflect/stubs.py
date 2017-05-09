@@ -14,7 +14,7 @@ class SchemaMessage(Message):
 
 
 class ParameterMessage(Message):
-    is_in = String(json_name='in')  # TODO: enum
+    in_ = String(json_name='in')  # TODO: enum
     description: str
     required: bool
     name: str
