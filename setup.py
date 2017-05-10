@@ -36,7 +36,7 @@ setup(
     ],
     zip_safe=False,
     extras_require={
-        'docs': ['sphinx'],
+        'docs': ['Sphinx>=1.5.5'],
         'aiohttp': ['aiohttp>=1.2.0', 'ujson'],
         'grpc': ['grpcio'],
     }
