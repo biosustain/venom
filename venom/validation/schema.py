@@ -17,6 +17,7 @@ class Schema(Message):
     min_length: int
     max_length = NullableField(int)
 
+    format: str
     pattern: str
 
     min_items: int

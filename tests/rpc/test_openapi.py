@@ -1,14 +1,16 @@
 import os
 from unittest import TestCase
+
+from venom.common import Timestamp, StringValue
 from venom.fields import Int, String, repeated, Field
 from venom.message import Message, Empty
+from venom.protocol import JSONProtocol
 from venom.rpc import Service, http, Venom
-from venom.protocol import JSON
-from venom.rpc.reflect.reflect import Reflect
-from venom.rpc.reflect.service import ReflectService
 from venom.rpc.reflect.openapi import make_openapi_schema, OpenAPISchema, \
     SchemaMessage
-from venom.rpc.reflect.stubs import ParameterMessage
+from venom.rpc.reflect.reflect import Reflect
+from venom.rpc.reflect.service import ReflectService
+from venom.rpc.reflect.stubs import ParameterMessage, ResponseMessage
 
 TEST_DIR = os.path.dirname(__file__)
 
@@ -33,7 +35,7 @@ class OpenAPITestCase(TestCase):
         reflect = Reflect()
         reflect.add(PetServiceSimple)
         schema = make_openapi_schema(reflect)
-        protocol = JSON(OpenAPISchema)
+        protocol = JSONProtocol(OpenAPISchema)
         with open(TEST_DIR + '/data/openapi_simple.json', 'rb') as f:
             schema_correct = protocol.unpack(f.read())
             self.assertEqual(schema.paths, schema_correct.paths)
@@ -100,6 +102,38 @@ class OpenAPITestCase(TestCase):
         self.assertEqual(list(schema.paths['/pet/{petId}']['get'].parameters), [
             ParameterMessage(in_='path', required=True, name='petId', type='integer')
         ])
+
+    def test_openapi_custom_transcoder(self):
+        class UpdateDateRequest(Message):
+            new_date: Timestamp
+            reason: StringValue
+
+        class DateService(Service):
+
+            @http.GET
+            def get_current_time(self) -> Timestamp:
+                pass
+
+            @http.POST('.')
+            def update_date(self, request: UpdateDateRequest):
+                pass
+
+        reflect = Reflect()
+        reflect.add(DateService)
+        schema = make_openapi_schema(reflect)
+
+        self.assertEqual(set(schema.paths.keys()), {'/date/get-current-time', '/date'})
+
+        self.assertEqual(schema.paths['/date/get-current-time']['get'].responses.default,
+                         ResponseMessage(description='',
+                                         schema=SchemaMessage(type='string', format='date-time')))
+
+        self.assertEqual(set(schema.definitions.keys()), {'UpdateDateRequest'})
+        self.assertEqual(schema.definitions['UpdateDateRequest'], SchemaMessage(
+            properties={
+                'newDate': SchemaMessage(type='string', format='date-time'),
+                'reason': SchemaMessage(type='string')},
+            type='object'))
 
     def test_nested_messages(self):
         class Pet(Message):

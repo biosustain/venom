@@ -11,6 +11,7 @@ class SchemaMessage(Message):
     ref = String(json_name='$ref')
     additional_properties = Field('venom.rpc.reflect.openapi.SchemaMessage')
     items = Field('venom.rpc.reflect.openapi.SchemaMessage')
+    format: str
 
 
 class ParameterMessage(Message):

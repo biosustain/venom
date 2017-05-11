@@ -8,7 +8,7 @@ from venom.common.messages import Int64Value, Int32Value, StringValue, Float32Va
 from venom.converter import Converter
 
 V = TypeVar('V')
-T = TypeVar('T')
+T = TypeVar('_T')
 
 
 class _ValueConverter(Converter[V, T]):
@@ -87,13 +87,13 @@ class DateTimeConverter(Converter):
 # TODO
 # class JSONValueConverter(Converter):
 #     wire = Value
-#     python = types.JSONValue
+#     python = types.JSONValueTranscoder
 #
 #     @staticmethod
 #     def _convert_number_value(value: Value):
 #         return value.number_value
 #
-#     def convert(self, value: Value) -> types.JSONValue:
+#     def convert(self, value: Value) -> types.JSONValueTranscoder:
 #         return {
 #             'number_value': self._convert_number_value
 #         }[value.value.which()](value)

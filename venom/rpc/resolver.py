@@ -2,7 +2,7 @@ from abc import abstractmethod, ABCMeta
 
 from typing import TypeVar, Generic, Type
 
-T = TypeVar('T')
+T = TypeVar('_T')
 
 
 class Resolver(Generic[T], metaclass=ABCMeta):

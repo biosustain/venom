@@ -1,13 +1,14 @@
 from collections import defaultdict
 from itertools import groupby, chain
-from operator import attrgetter
 
-from typing import Iterable
+from typing import Iterable, Type
 
 from venom import Message
 from venom.fields import FieldDescriptor
 from venom.message import fields, is_empty
-from venom.protocol import JSON
+from venom.protocol import JSONProtocol, Protocol
+from venom.protocol.transcode import JSONTimestampTranscoder, DictMessageTranscoder, \
+    JSONValueTranscoder, JSONFieldMaskTranscoder
 from venom.rpc.method import Method, HTTPFieldLocation
 from venom.rpc.reflect.reflect import Reflect
 from venom.rpc.reflect.stubs import OperationMessage, \
@@ -38,16 +39,27 @@ QUERY_PARAMETER = {
 }
 
 
-def ref_schema_message(message: Message) -> SchemaMessage:
+def message_reference_schema(message: Type[Message], protocol: Type[Protocol] = None) -> SchemaMessage:
+    if protocol:
+        transcoder = DictMessageTranscoder.get(protocol, message)
+
+        if transcoder == JSONTimestampTranscoder:
+            return SchemaMessage(type='string', format='date-time')
+        elif transcoder == JSONFieldMaskTranscoder:
+            return SchemaMessage(type='string')
+        elif transcoder == JSONValueTranscoder:
+            return field_schema(message.value)
+        elif not issubclass(transcoder, DictMessageTranscoder):
+            raise NotImplementedError(f'Unsupported transcoder for reflection {transcoder} on {message}')
+
     return SchemaMessage(ref=f'#/definitions/{message.__meta__.name}')
 
 
-def schema_message(field: FieldDescriptor) -> SchemaMessage:
-    if field.type not in TYPE_TO_JSON:
-        if issubclass(field.type, Message):
-            schema = ref_schema_message(field.type)
-        else:
-            raise NotImplementedError(f'Unrecognized field type: {field.type}')
+def field_schema(field: FieldDescriptor, protocol: Type[Protocol] = None) -> SchemaMessage:
+    if issubclass(field.type, Message):
+        schema = message_reference_schema(field.type, protocol)
+    elif field.type not in TYPE_TO_JSON:
+        raise NotImplementedError(f'Unrecognized field type: {field.type}')
     else:
         schema = SchemaMessage(type=TYPE_TO_JSON[field.type])
 
@@ -55,28 +67,36 @@ def schema_message(field: FieldDescriptor) -> SchemaMessage:
         if field.key_type:
             return SchemaMessage(type='object',
                                  additional_properties=schema,
-                                 description=field.options.get(DESCRIPTION))
+                                 description=field.options.get('description'))
         return SchemaMessage(type='array',
                              items=schema,
-                             description=field.options.get(DESCRIPTION))
+                             description=field.options.get('description'))
 
-    if not issubclass(field.type, Message):
+    if not schema.ref:  # {$ref} objects should not have additional properties
         schema.description = field.options.get(DESCRIPTION)
 
     return schema
 
 
+def fields_schema(fields: Iterable[FieldDescriptor],
+                  protocol: Type[Protocol] = None,
+                  description: str = None) -> SchemaMessage:
+    return SchemaMessage(type='object',
+                         properties={field.json_name: field_schema(field, protocol) for field in fields},
+                         description=description)
+
+
 def parameters_at_location(request: Message, names: Iterable, default: dict):
-    protocol = JSON(SchemaMessage)
+    encoder = DictMessageTranscoder(JSONProtocol, SchemaMessage)
 
     for field_name in names:
         field = getattr(request, field_name)
-        field_schema = schema_message(field)
+        schema = field_schema(field)
 
         yield ParameterMessage(
             name=field.json_name,
             **default,
-            **protocol.encode(field_schema))
+            **encoder.encode(schema))
 
 
 def parameters_path(method: Method) -> Iterable:
@@ -95,24 +115,26 @@ def parameters_query(method: Method) -> Iterable:
 
 def parameters_body(method: Method) -> list:
     body_fields = method.http_field_locations()[HTTPFieldLocation.BODY]
+
     if not body_fields:
         return []
+
     fields = {f: getattr(method.request, f) for f in body_fields}
     if fields == method.request.__fields__:
         param = dict(
             name=method.request.__meta__.name,
-            schema=ref_schema_message(method.request))
+            schema=message_reference_schema(method.request, JSONProtocol))
     else:
         param = dict(
             name=method.name + '_body',
-            schema=schema_for_fields(fields.values()))
+            schema=fields_schema(fields.values(), JSONProtocol))
     return [ParameterMessage(**BODY_PARAMETER, **param)]
 
 
 def response_message(method: Method) -> ResponseMessage:
     return ResponseMessage(
         description=method.options.get(DESCRIPTION, ''),
-        schema=ref_schema_message(method.response))
+        schema=message_reference_schema(method.response, JSONProtocol))
 
 
 def operation_message(method: Method) -> OperationMessage:
@@ -124,19 +146,10 @@ def operation_message(method: Method) -> OperationMessage:
             parameters_query(method))))
 
 
-def schema_for_fields(fields, description=None) -> SchemaMessage:
-    return SchemaMessage(
-        type='object',
-        properties={
-            v.json_name: schema_message(v) for v in fields
-        },
-        description=description)
-
-
-def schema_for_message(message: Message) -> SchemaMessage:
-    return schema_for_fields(
-        fields(message),
-        description=message.__meta__.get(DESCRIPTION))
+def schema_for_message(message: Message, protocol: Protocol = None) -> SchemaMessage:
+    return fields_schema(fields(message),
+                         JSONProtocol,  # XXX
+                         description=message.__meta__.get('description'))
 
 
 def make_openapi_schema(reflect: Reflect) -> OpenAPISchema:
@@ -145,15 +158,16 @@ def make_openapi_schema(reflect: Reflect) -> OpenAPISchema:
         for method in group:
             paths[path][method.http_method.value.lower()] = operation_message(method)
 
-    definitions = {
-        m.__meta__.name: schema_for_message(m) for m in reflect.messages
-        if not is_empty(m)
-    }
     return OpenAPISchema(
         swagger='2.0',
         consumes=['application/json'],
         produces=['application/json'],
         info=InfoMessage(version=reflect.version, title=reflect.title),
         paths=dict(paths),
-        definitions=definitions,
+        definitions={
+            message.__meta__.name: schema_for_message(message)
+            for message in reflect.messages
+            if not is_empty(message) and
+               issubclass(DictMessageTranscoder.get(JSONProtocol, message), DictMessageTranscoder)
+        }
     )

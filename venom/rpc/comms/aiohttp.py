@@ -3,8 +3,9 @@ import asyncio
 import aiohttp
 from typing import Type
 
+from venom.common import FieldMask
 from venom.exceptions import Error, ErrorResponse
-from venom.protocol import JSON, Protocol, DictProtocol, URIString
+from venom.protocol import JSONProtocol, Protocol, URIStringProtocol, URIStringDictMessageTranscoder
 from venom.rpc.comms import AbstractClient
 from venom.rpc.method import Method, HTTPVerb, HTTPFieldLocation
 
@@ -14,20 +15,23 @@ except ImportError:
     raise RuntimeError("You must install the 'aiohttp' package to use the AioHTTP features of Venom RPC")
 
 
-def _route_handler(venom: 'venom.rpc.Venom',
-                   method: Method,
-                   protocol_factory: Type[Protocol],
-                   query_protocol_factory: Type[DictProtocol] = URIString,
-                   path_protocol_factory: Type[DictProtocol] = URIString):
+def _route_handler(venom: 'venom.rpc.Venom', method: Method, protocol_factory: Type[Protocol]):
     rpc_response = protocol_factory(method.response)
     rpc_error_response = protocol_factory(ErrorResponse)
 
     http_status = method.http_status
 
     http_field_locations = method.http_field_locations()
-    http_request_body = protocol_factory(method.request, http_field_locations[HTTPFieldLocation.BODY])
-    http_request_query = query_protocol_factory(method.request, http_field_locations[HTTPFieldLocation.QUERY])
-    http_request_path = path_protocol_factory(method.request, http_field_locations[HTTPFieldLocation.PATH])
+
+    http_request_body = JSONProtocol(method.request, FieldMask(http_field_locations[HTTPFieldLocation.BODY]))
+
+    http_request_query = URIStringDictMessageTranscoder(URIStringProtocol,
+                                                        method.request,
+                                                        FieldMask(http_field_locations[HTTPFieldLocation.QUERY]))
+
+    http_request_path = URIStringDictMessageTranscoder(URIStringProtocol,
+                                                       method.request,
+                                                       FieldMask(http_field_locations[HTTPFieldLocation.PATH]))
 
     async def handler(http_request):
         try:
@@ -55,7 +59,7 @@ def _path_field_template(field, default):
 
 def create_app(venom: 'venom.rpc.Venom',
                app: web.Application = None,
-               protocol_factory: Type[Protocol] = JSON):
+               protocol_factory: Type[Protocol] = JSONProtocol):
     if app is None:
         app = web.Application()
 
@@ -73,14 +77,10 @@ class HTTPClient(AbstractClient):
                  base_url: str,
                  *,
                  protocol_factory: Type[Protocol] = None,
-                 query_protocol_factory: Type[DictProtocol] = URIString,
-                 path_protocol_factory: Type[DictProtocol] = URIString,
                  session: aiohttp.ClientSession = None,
                  **session_kwargs):
         super().__init__(stub, protocol_factory=protocol_factory)
         self._base_url = base_url
-        self._query_protocol_factory = query_protocol_factory
-        self._path_protocol_factory = path_protocol_factory
 
         if session is None:
             self._session = aiohttp.ClientSession(**session_kwargs)
@@ -108,9 +108,11 @@ class HTTPClient(AbstractClient):
 
         http_field_locations = method.http_field_locations()
 
-        # TODO cache this for each RPC call in HTTPClient.__init__()
-        params = self._query_protocol_factory(method.request,
-                                              http_field_locations[HTTPFieldLocation.QUERY]).encode(request)
+        params = URIStringDictMessageTranscoder(
+            URIStringProtocol,
+            method.request,
+            FieldMask(http_field_locations[HTTPFieldLocation.QUERY])).encode(request)
+
         body = self._protocol_factory(method.request,
                                       http_field_locations[HTTPFieldLocation.BODY]).pack(request)
 

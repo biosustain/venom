@@ -2,7 +2,7 @@ from abc import abstractmethod, ABC
 
 from typing import Type, Generic, TypeVar, ClassVar
 
-from venom.protocol import Protocol, JSON
+from venom.protocol import Protocol, JSONProtocol
 from venom.rpc.method import Method, Req, Res
 
 S = TypeVar('S', bound='venom.rcp.service.Service')
@@ -37,7 +37,7 @@ class AbstractClient(ABC, Generic[S]):
             setattr(self, name, method.__get__(stub))
 
         if protocol_factory is None:
-            protocol_factory = JSON
+            protocol_factory = JSONProtocol
 
         self._protocol_factory = protocol_factory
 

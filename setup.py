@@ -20,7 +20,8 @@ setup(
         'nose'
     ],
     install_requires=[
-        'blinker>=1.4.0'
+        'blinker>=1.4.0',
+        'aniso8601>=1.2.1'
     ],
     classifiers=[
         'Development Status :: 3 - Alpha',

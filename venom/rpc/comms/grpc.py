@@ -4,7 +4,7 @@ from threading import Thread
 
 from typing import Type
 
-from venom.protocol import Protocol, JSON
+from venom.protocol import Protocol, JSONProtocol
 from venom.rpc.comms import AbstractClient
 
 try:
@@ -18,7 +18,7 @@ except ImportError:
 
 def create_server(venom: 'venom.rpc.Venom',
                   *,
-                  protocol_factory: Type[Protocol] = JSON,
+                  protocol_factory: Type[Protocol] = JSONProtocol,
                   pool=None,
                   pool_size=None,
                   default_timeout=None,

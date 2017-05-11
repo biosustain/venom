@@ -5,7 +5,7 @@ from typing import Type
 
 from venom.message import items, field_names
 
-T = TypeVar('T', bool, int, float, str, bytes, 'venom.message.Message')
+T = TypeVar('_T', bool, int, float, str, bytes, 'venom.message.Message')
 
 P = TypeVar('P')
 
@@ -27,7 +27,7 @@ class Converter(Generic[T, P], metaclass=ABCMeta):
 
 
 _M = TypeVar('M', bound='venom.Message')
-_O = TypeVar('T')
+_O = TypeVar('_T')
 
 
 class ObjectAttrMapper(Generic[_M, _O]):

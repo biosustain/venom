@@ -1,8 +1,11 @@
+import calendar
 import enum
 
+import datetime
 from typing import Iterable, Any, Tuple
 
-from venom.fields import String, Int32, Int64, Bool, Float32, Float64, repeated, Bytes, Field, MapField
+from venom.exceptions import ValidationError
+from venom.fields import String, Int32, Int64, Bool, Float32, Float64, repeated, Bytes, Field, MapField, Repeat
 from venom.message import Message, one_of
 
 
@@ -89,26 +92,8 @@ class Value(Message):
         list_value)
 
 
-from venom.protocol import JSON as _JSON
-
-
-class _JSONValue(_JSON):
-    def encode(self, message: Message):
-        return message.value
-
-    def decode(self, instance: Any, skip: Iterable[str] = ()) -> Message:
-        value = self._cast(self._format.value.type, instance)
-        return self._format(value)
-
-
-StringValue.__meta__.protocols['json'] = _JSONValue(StringValue)
-IntegerValue.__meta__.protocols['json'] = _JSONValue(IntegerValue)
-NumberValue.__meta__.protocols['json'] = _JSONValue(NumberValue)
-BoolValue.__meta__.protocols['json'] = _JSONValue(BoolValue)
-
-
 class FieldMask(Message):
-    paths = repeated(String())
+    paths: Repeat[str]
 
     class Meta:
         proto_package = 'google.protobuf'
@@ -123,21 +108,10 @@ class FieldMask(Message):
         return False
 
 
-class _JSONFieldMask(_JSON):
-    def encode(self, message: FieldMask):
-        return ','.join(message.paths)
-
-    def decode(self, instance: Any, skip: Iterable[str] = ()) -> Message:
-        paths = self._cast(str, instance)
-        return self._format(paths.split(','))
-
-
-FieldMask.__meta__.protocols['json'] = _JSONFieldMask(FieldMask)
-
-
 class Timestamp(Message):
     seconds = Int64()
     nanos = Int32()
 
     class Meta:
         proto_package = 'google.protobuf'
+

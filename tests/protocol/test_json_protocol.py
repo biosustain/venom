@@ -2,10 +2,10 @@ from unittest import SkipTest
 from unittest import TestCase
 
 from venom import Message
-from venom.common import StringValue, IntegerValue, BoolValue, NumberValue
+from venom.common import StringValue, IntegerValue, BoolValue, NumberValue, FieldMask, Timestamp
 from venom.exceptions import ValidationError
 from venom.fields import String, Number, Field, repeated, Map, MapField
-from venom.protocol import JSON
+from venom.protocol import JSONProtocol
 
 
 class Foo(Message):
@@ -20,7 +20,23 @@ class JSONProtocolTestCase(TestCase):
         class Pet(Message):
             sound: str
 
-        protocol = JSON(Pet)
+        protocol = JSONProtocol(Pet)
+        self.assertEqual(protocol.encode(Pet('hiss!')), {'sound': 'hiss!'})
+        self.assertEqual(protocol.decode({'sound': 'meow'}), Pet('meow'))
+        self.assertEqual(protocol.decode({}), Pet())
+
+        with self.assertRaises(ValidationError) as e:
+            protocol.decode('bad')
+
+        self.assertEqual(e.exception.description, "'bad' is not of type 'object'")
+        self.assertEqual(e.exception.path, [])
+
+    def test_encode_with_field_mask(self):
+        class Pet(Message):
+            sound: str
+            size: int
+
+        protocol = JSONProtocol(Pet, FieldMask(['sound']))
         self.assertEqual(protocol.encode(Pet('hiss!')), {'sound': 'hiss!'})
         self.assertEqual(protocol.decode({'sound': 'meow'}), Pet('meow'))
         self.assertEqual(protocol.decode({}), Pet())
@@ -35,7 +51,7 @@ class JSONProtocolTestCase(TestCase):
         class Pet(Message):
             size = Number(json_name='$size')
 
-        protocol = JSON(Pet)
+        protocol = JSONProtocol(Pet)
 
         pet = Pet()
         pet.size = 2.5
@@ -48,7 +64,7 @@ class JSONProtocolTestCase(TestCase):
 
         self.assertEqual(Pet.sounds.repeated, True)
 
-        protocol = JSON(Pet)
+        protocol = JSONProtocol(Pet)
         self.assertEqual(protocol.encode(Pet(['hiss!', 'slither'])), {'sounds': ['hiss!', 'slither']})
         self.assertEqual(protocol.decode({'sounds': ['meow', 'purr']}), Pet(['meow', 'purr']))
         self.assertEqual(protocol.decode({}), Pet())
@@ -69,7 +85,7 @@ class JSONProtocolTestCase(TestCase):
             f = MapField(FooInner)
 
         message = Foo(m={'a': 'b'}, f={'k': FooInner(i='in')})
-        protocol = JSON(Foo)
+        protocol = JSONProtocol(Foo)
         self.assertEqual(dict(message.m), {'a': 'b'})
         self.assertEqual(dict(message.f), {'k': FooInner(i='in')})
         self.assertEqual(protocol.encode(message), {'m': {'a': 'b'}, 'f': {'k': {'i': 'in'}}})
@@ -79,7 +95,7 @@ class JSONProtocolTestCase(TestCase):
         class Foo(Message):
             string = String()
 
-        protocol = JSON(Foo)
+        protocol = JSONProtocol(Foo)
         with self.assertRaises(ValidationError) as e:
             protocol.decode({'string': None})
 
@@ -87,7 +103,7 @@ class JSONProtocolTestCase(TestCase):
         self.assertEqual(e.exception.path, ['string'])
 
     def test_validation_path(self):
-        protocol = JSON(Foo)
+        protocol = JSONProtocol(Foo)
 
         with self.assertRaises(ValidationError) as e:
             protocol.decode({'string': 42})
@@ -112,12 +128,12 @@ class JSONProtocolTestCase(TestCase):
         class Pet(Message):
             sound = String()
 
-        protocol = JSON(Pet)
+        protocol = JSONProtocol(Pet)
 
         with self.assertRaises(ValidationError) as e:
             protocol.unpack(b'')
 
-        self.assertEqual(e.exception.description, "Invalid JSON: Expected object or value")
+        self.assertEqual(e.exception.description, "Invalid JSONProtocol: Expected object or value")
         self.assertEqual(e.exception.path, [])
 
         with self.assertRaises(ValidationError) as e:
@@ -127,12 +143,12 @@ class JSONProtocolTestCase(TestCase):
         class Pet(Message):
             sound = String()
 
-        protocol = JSON(Pet)
+        protocol = JSONProtocol(Pet)
         self.assertEqual(protocol.pack(Pet()), b'{}')
         self.assertEqual(protocol.pack(Pet('hiss!')), b'{"sound":"hiss!"}')
 
     def test_string_value(self):
-        protocol = JSON(StringValue)
+        protocol = JSONProtocol(StringValue)
 
         self.assertEqual(protocol.encode(StringValue('hiss!')), 'hiss!')
         self.assertEqual(protocol.decode('hiss!'), StringValue('hiss!'))
@@ -144,7 +160,7 @@ class JSONProtocolTestCase(TestCase):
             protocol.decode(42)
 
     def test_integer_value(self):
-        protocol = JSON(IntegerValue)
+        protocol = JSONProtocol(IntegerValue)
 
         self.assertEqual(protocol.encode(IntegerValue(2)), 2)
         self.assertEqual(protocol.decode(2), IntegerValue(2))
@@ -153,7 +169,7 @@ class JSONProtocolTestCase(TestCase):
             protocol.decode('hiss!')
 
     def test_number_value(self):
-        protocol = JSON(NumberValue)
+        protocol = JSONProtocol(NumberValue)
 
         self.assertEqual(protocol.encode(NumberValue(2.5)), 2.5)
         self.assertEqual(protocol.decode(2.5), NumberValue(2.5))
@@ -162,7 +178,7 @@ class JSONProtocolTestCase(TestCase):
             protocol.decode('hiss!')
 
     def test_bool_value(self):
-        protocol = JSON(BoolValue)
+        protocol = JSONProtocol(BoolValue)
 
         self.assertEqual(protocol.encode(BoolValue()), False)
         self.assertEqual(protocol.encode(BoolValue(True)), True)
@@ -170,3 +186,19 @@ class JSONProtocolTestCase(TestCase):
 
         with self.assertRaises(ValidationError):
             protocol.decode('hiss!')
+
+    def test_field_mask(self):
+        protocol = JSONProtocol(FieldMask)
+
+        self.assertEqual(protocol.encode(FieldMask(['a', 'b'])), 'a,b')
+        self.assertEqual(protocol.decode('a,b'), FieldMask(['a', 'b']))
+
+    def test_timestamp(self):
+        protocol = JSONProtocol(Timestamp)
+
+        self.assertEqual(protocol.decode('2017-10-10T12:34:56Z'), Timestamp(1507638896, 0))
+        self.assertEqual(protocol.encode(Timestamp(1507638896, 12345)), '2017-10-10T12:34:56.000012')
+
+
+        with self.assertRaises(ValidationError):
+            protocol.decode('yesterday')
