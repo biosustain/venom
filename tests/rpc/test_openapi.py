@@ -197,11 +197,23 @@ class OpenAPITestCase(TestCase):
         self.assertEqual(schema.info.title, 'Pet Aggregator')
 
     def test_tags(self):
-        venom = Venom()
-        venom.add(ReflectService)
-        schema = make_openapi_schema(
-            venom.get_instance(ReflectService).reflect
+        class QueryResponse(Message):
+            name: str
+
+        class PetMapping(Service):
+            @http.GET('./query', tags=['pets'])
+            def query(self) -> QueryResponse:
+                return QueryResponse(name='pet')
+
+        reflect = Reflect()
+        reflect.add(PetMapping)
+        reflect.add(ReflectService)
+        schema = make_openapi_schema(reflect)
+        self.assertEqual(
+            list(schema.tags),
+            [TagMessage(name='pets')]
         )
-        tag = TagMessage(name='tag', description='description')
-        schema.tags = [tag]
-        schema.paths['/openapi.json']['get'].tag = tag.name
+        self.assertEqual(
+            list(schema.paths['/petmapping/query']['get'].tags),
+            ['pets']
+        )

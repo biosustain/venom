@@ -4,6 +4,7 @@
         "version": "0.0.1",
         "title": "API"
     },
+    "tags": [],
     "schemes": [
         "http"
     ],
@@ -16,6 +17,7 @@
     "paths": {
         "/petservice/pet/{id}": {
             "get": {
+                "tags": [],
                 "summary": "",
                 "responses": {
                     "default": {
@@ -37,6 +39,7 @@
         },
         "/petservice/pet": {
             "post": {
+                "tags": [],
                 "summary": "",
                 "responses": {
                     "default": {
