@@ -71,6 +71,7 @@ class PathsMessage(Message):
 class TagMessage(Message):
     name: str
     description: str
+    external_docs: ExternalDocsMessage
 
 
 class OpenAPISchema(Message):

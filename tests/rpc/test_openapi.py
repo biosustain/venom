@@ -8,6 +8,10 @@ from venom.protocol import JSONProtocol
 from venom.rpc import Service, http, Venom
 from venom.rpc.reflect.openapi import make_openapi_schema, OpenAPISchema, \
     SchemaMessage
+from venom.rpc.reflect.stubs import TagMessage
+from venom.validation import MessageValidator
+from venom.exceptions import ValidationError
+
 import json
 from venom.rpc.reflect.reflect import Reflect
 from venom.rpc.reflect.service import ReflectService
@@ -186,6 +190,18 @@ class OpenAPITestCase(TestCase):
     def test_venom_info(self):
         venom = Venom(version='3.1.4', title='Pet Aggregator')
         venom.add(ReflectService)
-        schema = make_openapi_schema(venom.get_instance(ReflectService).reflect)
+        schema = make_openapi_schema(
+            venom.get_instance(ReflectService).reflect
+        )
         self.assertEqual(schema.info.version, '3.1.4')
         self.assertEqual(schema.info.title, 'Pet Aggregator')
+
+    def test_tags(self):
+        venom = Venom()
+        venom.add(ReflectService)
+        schema = make_openapi_schema(
+            venom.get_instance(ReflectService).reflect
+        )
+        tag = TagMessage(name='tag', description='description')
+        schema.tags = [tag]
+        schema.paths['/openapi.json']['get'].tag = tag.name
