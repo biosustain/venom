@@ -27,18 +27,18 @@ class Converter(Generic[T, P], metaclass=ABCMeta):
 
 
 _M = TypeVar('M', bound='venom.Message')
-_O = TypeVar('_T')
+_P = TypeVar('P')
 
 
-class ObjectAttrMapper(Generic[_M, _O]):
-    def __init__(self, message_cls: Type[_M], object_cls: Callable[[], _O] = None, **attr_converters: Converter):
-        self._object_cls = object_cls
+class ObjectAttrMapper(Converter[_M, _P]):
+    def __init__(self, message_cls: Type[_M], python_cls: Callable[[], _P] = None, **attr_converters: Converter):
+        self._python_cls = python_cls
         self._message_cls = message_cls
         self._attr_converters = attr_converters
 
-    def resolve(self, msg: _M, obj: _O) -> _O:
+    def resolve(self, msg: _M, obj: _P = None) -> _P:
         if obj is None:
-            obj = self._object_cls()
+            obj = self._python_cls()
 
         for name, value in items(msg):
             converter = self._attr_converters.get(name)
@@ -48,7 +48,7 @@ class ObjectAttrMapper(Generic[_M, _O]):
 
         return obj
 
-    def format(self, obj: _O) -> _M:
+    def format(self, obj: _P) -> _M:
         msg = self._message_cls()
         for name in field_names(self._message_cls):
             value = getattr(obj, name, None)
@@ -57,3 +57,12 @@ class ObjectAttrMapper(Generic[_M, _O]):
                 value = converter.format(value)
             msg[name] = value
         return msg
+
+    @property
+    def python(self):
+        return self._python_cls
+
+    @property
+    def wire(self):
+        return self._message_cls
+
