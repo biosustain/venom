@@ -1,7 +1,7 @@
 from typing import Type, Set
 
 from venom import Message
-from venom.fields import RepeatField, MapField, FieldDescriptor
+from venom.fields import FieldDescriptor
 from venom.message import fields
 from venom.rpc import Service
 from venom.rpc.method import Method

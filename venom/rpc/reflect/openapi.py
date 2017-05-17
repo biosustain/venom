@@ -13,7 +13,7 @@ from venom.rpc.method import Method, HTTPFieldLocation
 from venom.rpc.reflect.reflect import Reflect
 from venom.rpc.reflect.stubs import OperationMessage, \
     ParameterMessage, ResponsesMessage, ResponseMessage, \
-    SchemaMessage, InfoMessage, OpenAPISchema
+    SchemaMessage, InfoMessage, OpenAPISchema, TagMessage
 
 DESCRIPTION = 'description'
 
@@ -139,6 +139,8 @@ def response_message(method: Method) -> ResponseMessage:
 
 def operation_message(method: Method) -> OperationMessage:
     return OperationMessage(
+        summary=method.options.get(DESCRIPTION, ''),
+        tags=method.options.get('tags', []),
         responses=ResponsesMessage(default=response_message(method)),
         parameters=list(chain(
             parameters_body(method),
@@ -153,15 +155,19 @@ def schema_for_message(message: Message, protocol: Protocol = None) -> SchemaMes
 
 
 def make_openapi_schema(reflect: Reflect) -> OpenAPISchema:
+    tags = []
     paths = defaultdict(dict)
     for path, group in groupby(reflect.methods, key=lambda method: method.format_http_path(json_names=True)):
         for method in group:
+            if method.options.get('tags'):
+                tags.extend([TagMessage(name=n) for n in method.options['tags']])
             paths[path][method.http_method.value.lower()] = operation_message(method)
 
     return OpenAPISchema(
         swagger='2.0',
         consumes=['application/json'],
         produces=['application/json'],
+        tags=tags,
         info=InfoMessage(version=reflect.version, title=reflect.title),
         paths=dict(paths),
         definitions={
