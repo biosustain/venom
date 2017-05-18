@@ -105,16 +105,16 @@ class Venom(object):
     def get_request_context(self) -> RequestContext:
         return self._request_context_cls(self)
 
-    async def _invoke(self, method: Method, request: 'venom.Message'):
-        with self._request_context_cls(self):
+    async def _invoke(self, method: Method, request: 'venom.Message', context: dict = None):
+        with self._request_context_cls(self, context):
             instance = self.get_instance(method.service)
             self.before_invoke.send(self, method=method, request=request)
             return await method.invoke(instance, request)
 
-    async def invoke(self, method: Method, request: 'venom.Message', loop: 'asyncio.AbstractEventLoop' = None):
+    async def invoke(self, method: Method, request: 'venom.Message', context: dict = None, loop: 'asyncio.AbstractEventLoop' = None):
         if loop is None:
             loop = asyncio.get_event_loop()
-        return await loop.create_task(self._invoke(method, request))
+        return await loop.create_task(self._invoke(method, request, context))
 
     def __iter__(self) -> Iterable[Type[Service]]:
         return iter(self._instances.values())

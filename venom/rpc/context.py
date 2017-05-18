@@ -10,8 +10,12 @@ class RequestContext(object):
     __contexts: MutableMapping[asyncio.Task, 'RequestContext'] = WeakKeyDictionary()
     _context_task: asyncio.Task = None
 
-    def __init__(self, venom: 'venom.rpc.Venom' = None):
+    def __init__(self, venom: 'venom.rpc.Venom' = None, context: dict = None):
         self.venom = venom
+        self._apply_context(context or {})
+
+    def _apply_context(self, context: dict):
+        pass
 
     @classmethod
     def current(cls) -> Optional['RequestContext']:
@@ -54,3 +58,6 @@ class RequestContextDescriptor(object):
 class DictRequestContext(RequestContext, dict):
     def __hash__(self):
         return hash(self._context_task)
+
+    def _apply_context(self, context: dict):
+        self.update(**context)
