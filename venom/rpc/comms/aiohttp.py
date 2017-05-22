@@ -48,7 +48,7 @@ def _route_handler(venom: 'venom.rpc.Venom', method: Method, protocol_factory: T
             http_request_query.decode(http_request.url.query, request)
             http_request_path.decode(http_request.match_info, request)
 
-            response = await venom.invoke(method, request, context=AioHTTPRequestContext(request))
+            response = await venom.invoke(method, request, context=AioHTTPRequestContext(http_request))
             return web.Response(body=rpc_response.pack(response),
                                 content_type=rpc_response.mime,
                                 status=http_status)
