@@ -23,11 +23,11 @@ class Venom(object):
     on_add_public_service: ClassVar[Signal] = Signal('add-public-service')
     before_invoke: ClassVar[Signal] = Signal('before-invoke')
 
-    _request_context_cls: Type[RequestContext]
+    _default_request_context_cls: Type[RequestContext]
     _instances: Mapping[Service, Union[Service, 'venom.rpc.comms.AbstractClient']]
 
-    def __init__(self, *, request_context_cls: Type[RequestContext] = DictRequestContext, **options):
-        self._request_context_cls = request_context_cls
+    def __init__(self, *, default_request_context_cls: Type[RequestContext] = DictRequestContext, **options):
+        self._default_request_context_cls = default_request_context_cls
         self._instances = {}
         self._services = {}
         self._public_services = {}
@@ -103,18 +103,27 @@ class Venom(object):
                 yield method
 
     def get_request_context(self) -> RequestContext:
-        return self._request_context_cls(self)
+        return self._default_request_context_cls()
 
-    async def _invoke(self, method: Method, request: 'venom.Message'):
-        with self._request_context_cls(self):
+    async def _invoke(self, method: Method, request: 'venom.Message', context: RequestContext):
+        with context:
             instance = self.get_instance(method.service)
             self.before_invoke.send(self, method=method, request=request)
             return await method.invoke(instance, request)
 
-    async def invoke(self, method: Method, request: 'venom.Message', loop: 'asyncio.AbstractEventLoop' = None):
+    async def invoke(self,
+                     method: Method,
+                     request: 'venom.Message',
+                     *,
+                     context: RequestContext = None,
+                     loop: 'asyncio.AbstractEventLoop' = None):
+
+        if context is None:
+            context = self._default_request_context_cls()
+
         if loop is None:
             loop = asyncio.get_event_loop()
-        return await loop.create_task(self._invoke(method, request))
+        return await loop.create_task(self._invoke(method, request, context))
 
     def __iter__(self) -> Iterable[Type[Service]]:
         return iter(self._instances.values())

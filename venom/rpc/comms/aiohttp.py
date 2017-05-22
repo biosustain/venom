@@ -1,11 +1,13 @@
 import asyncio
 
 import aiohttp
+from aiohttp.web_request import BaseRequest
 from typing import Type
 
 from venom.common import FieldMask
 from venom.exceptions import Error, ErrorResponse
 from venom.protocol import JSONProtocol, Protocol, URIStringProtocol, URIStringDictMessageTranscoder
+from venom.rpc import RequestContext
 from venom.rpc.comms import AbstractClient
 from venom.rpc.method import Method, HTTPVerb, HTTPFieldLocation
 
@@ -13,6 +15,13 @@ try:
     from aiohttp import web, ClientSession
 except ImportError:
     raise RuntimeError("You must install the 'aiohttp' package to use the AioHTTP features of Venom RPC")
+
+
+class AioHTTPRequestContext(RequestContext):
+    request: BaseRequest
+
+    def __init__(self, request: BaseRequest):
+        self.request = request
 
 
 def _route_handler(venom: 'venom.rpc.Venom', method: Method, protocol_factory: Type[Protocol]):
@@ -39,7 +48,7 @@ def _route_handler(venom: 'venom.rpc.Venom', method: Method, protocol_factory: T
             http_request_query.decode(http_request.url.query, request)
             http_request_path.decode(http_request.match_info, request)
 
-            response = await venom.invoke(method, request)
+            response = await venom.invoke(method, request, context=AioHTTPRequestContext(request))
             return web.Response(body=rpc_response.pack(response),
                                 content_type=rpc_response.mime,
                                 status=http_status)
