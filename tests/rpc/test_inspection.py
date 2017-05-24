@@ -78,6 +78,7 @@ class InspectionTestCase(AioTestCase):
 
             inspect = magic_normalize(func, converters=[StringValueConverter()])
 
+    @SkipTest
     async def test_new_type_return_value(self):
         MyInt = NewType('MyInt', int)
 
