@@ -1,5 +1,6 @@
 import calendar
 import enum
+import json
 
 import datetime
 from typing import Iterable, Any, Tuple
@@ -90,6 +91,13 @@ class Value(Message):
         bool_value,
         struct_value,
         list_value)
+
+
+class JSONValue(Message):
+    value = String()
+
+    def __init__(self, value):
+        super().__init__(json.dumps(value))
 
 
 class FieldMask(Message):
