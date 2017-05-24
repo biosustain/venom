@@ -226,8 +226,9 @@ def magic_normalize(func: Callable[..., Any],
     response_converter = None
 
     if response is None:
-        if hasattr(return_type, '__supertype__'):  # handles NewType
-            return_type = return_type.__supertype__
+        # TODO NewType support (fallback, but first see if the new type is supported directly)
+        # if hasattr(return_type, '__supertype__'):  # handles NewType
+        #     return_type = return_type.__supertype__
 
         if return_type in (Any, None, type(None)):  # None for Python 3.5 compatibility
             # TODO warn if Any: missing return type annotation (will discard return value)
