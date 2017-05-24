@@ -9,7 +9,7 @@ class URIStringProtocolTestCase(TestCase):
         class Pet(Message):
             pet_id: int
 
-        protocol = URIStringDictMessageTranscoder(URIStringProtocol, Pet)
-        self.assertEqual(protocol.encode(Pet(1)), {'petId': '1'})
-        self.assertEqual(protocol.decode({'petId': '42'}), Pet(42))
-        self.assertEqual(protocol.decode({}), Pet())
+        transcoder = URIStringDictMessageTranscoder(URIStringProtocol, Pet)
+        self.assertEqual(transcoder.encode(Pet(1)), {'petId': '1'})
+        self.assertEqual(transcoder.decode({'petId': '42'}), Pet(42))
+        self.assertEqual(transcoder.decode({}), Pet())
