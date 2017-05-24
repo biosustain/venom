@@ -59,7 +59,7 @@ class AioHTTPSimpleServerTestCase(AioHTTPTestCase):
         response = await self.client.post("/snake", data=json.dumps({}))
 
         self.assertEqual(200, response.status)
-        self.assertEqual({'id': 1, 'name': '', 'size': 2}, await response.json())
+        self.assertEqual({'id': 1, 'size': 2}, await response.json())
 
         response = await self.client.post("/snake", data=json.dumps({'name': 'Snek', 'size': 9001}))
 

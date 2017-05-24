@@ -2,7 +2,7 @@ from unittest import SkipTest
 from unittest import TestCase
 
 from venom import Message
-from venom.common import StringValue, IntegerValue, BoolValue, NumberValue, FieldMask, Timestamp
+from venom.common import StringValue, IntegerValue, BoolValue, NumberValue, FieldMask, Timestamp, Repeat
 from venom.exceptions import ValidationError
 from venom.fields import String, Number, Field, repeated, Map, MapField
 from venom.protocol import JSONProtocol
@@ -186,6 +186,23 @@ class JSONProtocolTestCase(TestCase):
 
         with self.assertRaises(ValidationError):
             protocol.decode('hiss!')
+
+    def test_repeat(self):
+        class Pet(Message):
+            sounds: Repeat[str]
+
+        protocol = JSONProtocol(Pet)
+
+        self.assertEqual(protocol.encode(Pet(['hiss!', '(slither)'])), {'sounds': ['hiss!', '(slither)']})
+        self.assertEqual(protocol.decode({"sounds": ['hiss!']}), Pet(['hiss!']))
+        self.assertEqual(protocol.decode({}), Pet())
+
+        self.assertEqual(protocol.pack(Pet()), b'{}')
+        self.assertEqual(protocol.pack(Pet([])), b'{}')
+        self.assertEqual(protocol.pack(Pet(['hiss!'])), b'{"sounds":["hiss!"]}')
+
+        self.assertEqual(protocol.unpack(b'{}'), Pet())
+        self.assertEqual(protocol.unpack(b'{"sounds":["hiss!"]}'), Pet(['hiss!']))
 
     def test_field_mask(self):
         protocol = JSONProtocol(FieldMask)

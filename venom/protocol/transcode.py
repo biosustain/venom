@@ -15,7 +15,7 @@ from venom.fields import FieldDescriptor
 
 
 _PrimitiveValue = Union[str, int, float, bool, bytes]
-_Value = Union[_PrimitiveValue, Dict[str, _PrimitiveValue], List[_PrimitiveValue]]
+_Value = Union[_PrimitiveValue, Dict[str, '_Value'], List['_Value']]
 
 
 class MessageTranscoder(ABC):
@@ -98,7 +98,9 @@ class DictMessageTranscoder(MessageTranscoder):
         obj = {}
         for (name, json_name), encode in self.field_encoders.items():
             try:
-                obj[json_name] = encode(message[name])
+                value = message[name]
+                if value:
+                    obj[json_name] = encode(value)
             except KeyError:
                 pass
         return obj
