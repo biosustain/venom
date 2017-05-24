@@ -1,7 +1,10 @@
 from collections import namedtuple
+from unittest import SkipTest
 
 from venom import Empty
 from venom import Message
+from venom.common import Value, BoolValue
+from venom.common.types import JSONValue
 from venom.converter import Converter
 from venom.fields import Int32, String
 from venom.rpc import Service, rpc
@@ -82,3 +85,15 @@ class MethodTestCase(AioTestCase):
         self.assertEqual(MethodDescriptor(Snake, Snake, http_path='./{name}/{id}')
                          .prepare(FooService(), 'foo')
                          .http_path_parameters(), {'id', 'name'})
+
+    @SkipTest
+    async def test_json_method(self):
+        class FooService(Service):
+            @rpc
+            def get_json(self) -> JSONValue:
+                return {"foo": True}
+
+        self.assertEqual(await FooService.get_json.invoke(FooService(), Empty()),
+                         Value(bool_value=BoolValue(True)))
+
+
