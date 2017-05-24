@@ -26,20 +26,26 @@ class JSONProtocol(TranscodingProtocol):
 
         self.is_empty = len(message.__fields__) == 0 or self.field_mask and len(self.field_mask.paths) == 0
 
-    def pack(self, message: Message) -> bytes:
+    def packs(self, message: Message) -> str:
         if self.is_empty:
-            return b''
-        return json.dumps(self.encode(message)).encode('utf-8')
+            return ''
+        return json.dumps(self.encode(message))
 
-    def unpack(self, buffer: bytes):
+    def unpacks(self, buffer: str) -> Message:
         # allow empty string when message is empty
         if len(buffer) == 0 and self.is_empty:
             return self.message()
 
         try:
-            return self.decode(json.loads(buffer.decode('utf-8')))
+            return self.decode(json.loads(buffer))
         except (ValueError, JSONDecodeError) as e:
             raise ValidationError(f"Invalid JSONProtocol: {str(e)}")
+
+    def pack(self, message: Message) -> bytes:
+        return self.packs(message).encode('utf-8')
+
+    def unpack(self, buffer: bytes) -> Message:
+        return self.unpacks(buffer.decode('utf-8'))
 
 
 class URIStringProtocol(TranscodingProtocol):
