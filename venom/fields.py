@@ -253,6 +253,9 @@ class Repeat(Generic[_VT], MutableSequence[_VT]):
     def items(self) -> Iterable[Tuple[int, Any]]:
         return enumerate(self._sequence)
 
+    def __repr__(self):
+        return f'Repeat({repr(self._sequence)})'
+
 
 class RepeatField(FieldDescriptor[_VT]):
     repeated: bool = True
@@ -297,6 +300,9 @@ class Map(Generic[_KT, _VT], MutableMapping[_KT, _VT]):
 
     def __iter__(self) -> Iterator[_KT]:
         return iter(self._mapping)
+
+    def __repr__(self):
+        return f'Map({repr(self._mapping)})'
 
 
 class MapField(FieldDescriptor[_VT], Generic[_KT, _VT]):

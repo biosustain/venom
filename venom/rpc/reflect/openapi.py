@@ -17,6 +17,7 @@ from venom.rpc.reflect.stubs import OperationMessage, \
 
 DESCRIPTION = 'description'
 
+
 # TODO: other types
 TYPE_TO_JSON = {
     str: 'string',

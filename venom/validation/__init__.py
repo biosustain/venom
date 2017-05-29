@@ -15,7 +15,7 @@ M = TypeVar('M', bound=Message)
 
 
 def _get_field_schema(field: FieldDescriptor) -> Schema:
-    return merge_into(Schema(), Schema.lookup(field.type), field.schema or Schema())
+    return merge_into(Schema(), field.schema or Schema())
 
 
 class _MessageValidator(ABC):

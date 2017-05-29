@@ -2,16 +2,19 @@ from venom import Message
 from venom.fields import Field, String, Map, MapField, Repeat
 from venom.rpc import Stub
 from venom.rpc import http
+from venom.validation import Schema
 
 
-class SchemaMessage(Message):
+class SchemaMessage(Schema):
+    ref = String(json_name='$ref')
+
     type: str  # TODO: enum
     description: str
-    properties = MapField('venom.rpc.reflect.openapi.SchemaMessage')
-    ref = String(json_name='$ref')
-    additional_properties = Field('venom.rpc.reflect.openapi.SchemaMessage')
+
     items = Field('venom.rpc.reflect.openapi.SchemaMessage')
-    format: str
+
+    properties = MapField('venom.rpc.reflect.openapi.SchemaMessage')
+    additional_properties = Field('venom.rpc.reflect.openapi.SchemaMessage')
 
 
 class ParameterMessage(Message):
