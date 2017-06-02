@@ -168,11 +168,25 @@ def _cast_value_from_string(as_type: type, value: Any):
 
 class URIStringDictMessageTranscoder(DictMessageTranscoder):
     def field_decoder_factory(self, field: FieldDescriptor) -> Callable[[_Value], Any]:
+        from venom.protocol import JSONProtocol
+
         if field.repeated:
-            raise NotImplementedError(f'Unable to decode {field} from URI string')
+            protocol = JSONProtocol(field.type)
+
+            def _decode_value(msg):
+                return protocol.unpacks(msg.encode('utf-8'))
+
+            if field.key_type:
+                return lambda dct: {k: _decode_value(v) for k, v in _cast_value(dict, dct).items()}
+            return lambda lst: [_decode_value(item) for item in _cast_value(list, lst)]
 
         if issubclass(field.type, Message):
-            raise NotImplementedError(f'Unable to decode {field} from URI string')
+            protocol = JSONProtocol(field.type)
+
+            def _decode_value(msg):
+                return protocol.unpacks(msg.encode('utf-8'))
+
+            return _decode_value
 
         if field.type is str:
             return lambda s: s
@@ -184,11 +198,18 @@ class URIStringDictMessageTranscoder(DictMessageTranscoder):
         return partial(_cast_value_from_string, field.type)
 
     def field_encoder_factory(self, field: FieldDescriptor) -> Callable[[Any], _Value]:
+        from venom.protocol import JSONProtocol
+
         if field.repeated:
-            raise NotImplementedError(f'Unable to decode {field} from URI string')
+            protocol = JSONProtocol(field.type)
+
+            if field.key_type:
+                return lambda dct: {k: protocol.packs(v) for k, v in dct.items()}
+            return lambda lst: [protocol.packs(v) for v in lst]
 
         if issubclass(field.type, Message):
-            raise NotImplementedError(f'Unable to decode {field} from URI string')
+            protocol = JSONProtocol(field.type)
+            return protocol.packs
 
         if field.type is bytes:
             return lambda b: b64encode(b)
