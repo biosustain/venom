@@ -1,4 +1,5 @@
 import calendar
+import json
 from abc import abstractmethod, ABC, ABCMeta
 from base64 import b64encode, b64decode
 
@@ -9,7 +10,7 @@ import aniso8601 as aniso8601
 from typing import Union, ClassVar, Dict, Type, Tuple, Any, TypeVar, Callable, Mapping, List
 
 from venom import Message
-from venom.common import FieldMask, Timestamp, StringValue, BytesValue, IntegerValue, NumberValue, BoolValue
+from venom.common import FieldMask, Timestamp, StringValue, BytesValue, IntegerValue, NumberValue, BoolValue, JSONValue
 from venom.exceptions import ValidationError
 from venom.fields import FieldDescriptor
 
@@ -215,6 +216,14 @@ class URIStringDictMessageTranscoder(DictMessageTranscoder):
             return lambda b: b64encode(b)
 
         return lambda x: str(x)
+
+
+class JSONTranscoder(MessageTranscoder):
+    def encode(self, message: JSONValue):
+        return json.loads(message.value)
+
+    def decode(self, instance: Any, message: Message = None) -> Message:
+        return self.message(instance)
 
 
 class JSONValueTranscoder(MessageTranscoder):

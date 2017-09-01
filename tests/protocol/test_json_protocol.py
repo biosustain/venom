@@ -1,10 +1,10 @@
-from unittest import SkipTest
 from unittest import TestCase
 
 from venom import Message
-from venom.common import StringValue, IntegerValue, BoolValue, NumberValue, FieldMask, Timestamp, Repeat
+from venom.common import StringValue, IntegerValue, BoolValue, NumberValue, \
+    FieldMask, Timestamp, Repeat, JSONValue, Struct
 from venom.exceptions import ValidationError
-from venom.fields import String, Number, Field, repeated, Map, MapField
+from venom.fields import String, Number, Field, repeated, MapField
 from venom.protocol import JSONProtocol
 
 
@@ -219,3 +219,22 @@ class JSONProtocolTestCase(TestCase):
 
         with self.assertRaises(ValidationError):
             protocol.decode('yesterday')
+
+    def test_json_value(self):
+        protocol = JSONProtocol(JSONValue)
+        self.assertEqual(protocol.decode(True), JSONValue(True))
+        self.assertEqual(protocol.encode(JSONValue(1)), 1)
+        self.assertEqual(protocol.decode('str'), JSONValue('str'))
+        self.assertEqual(protocol.encode(JSONValue('str')), 'str')
+        self.assertEqual(protocol.decode({'a': 'b'}), JSONValue({'a': 'b'}))
+        self.assertEqual(protocol.encode(JSONValue({'a': 'b'})), {'a': 'b'})
+        self.assertEqual(protocol.decode([1, 2, 3]), JSONValue([1, 2, 3]))
+        self.assertEqual(protocol.encode(JSONValue([1, 2, 3])), [1, 2, 3])
+        self.assertEqual(
+            protocol.decode({'a': ['h', 'l'], 'b': [9, 8, 7], 'c': 1}),
+            JSONValue({'a': ['h', 'l'], 'b': [9, 8, 7], 'c': 1})
+        )
+        self.assertEqual(
+            protocol.encode(JSONValue({'a': ['h', 'l'], 'b': [9, 8, 7], 'c': 1})),
+            {'a': ['h', 'l'], 'b': [9, 8, 7], 'c': 1}
+        )

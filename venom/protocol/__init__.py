@@ -3,11 +3,11 @@ from json import JSONDecodeError
 from typing import Type, TypeVar
 
 from venom import Message
-from venom.common import FieldMask, StringValue, IntegerValue, NumberValue, BoolValue, Timestamp
+from venom.common import FieldMask, StringValue, IntegerValue, NumberValue, BoolValue, Timestamp, JSONValue
 from venom.exceptions import ValidationError
 from .protocol import Protocol, TranscodingProtocol
 from .transcode import JSONValueTranscoder, JSONTimestampTranscoder, JSONFieldMaskTranscoder, \
-    URIStringDictMessageTranscoder
+    URIStringDictMessageTranscoder, JSONTranscoder
 
 _M = TypeVar('M', bound=Message)
 
@@ -58,5 +58,6 @@ for protocol in (JSONProtocol, URIStringProtocol):
     for message in (StringValue, IntegerValue, NumberValue, BoolValue):
         JSONValueTranscoder.set_protocol_default(JSONProtocol, message)
 
+    JSONTranscoder.set_protocol_default(JSONProtocol, JSONValue)
     JSONTimestampTranscoder.set_protocol_default(JSONProtocol, Timestamp)
     JSONFieldMaskTranscoder.set_protocol_default(JSONProtocol, FieldMask)

@@ -1,7 +1,7 @@
 import os
 from unittest import TestCase
 
-from venom.common import Timestamp, StringValue
+from venom.common import Timestamp, StringValue, JSONValue
 from venom.fields import Int, String, repeated, Field
 from venom.message import Message, Empty
 from venom.protocol import JSONProtocol
@@ -216,4 +216,21 @@ class OpenAPITestCase(TestCase):
         self.assertEqual(
             list(schema.paths['/petmapping/query']['get'].tags),
             ['pets']
+        )
+
+    def test_json_value(self):
+        class JsonResponse(Message):
+            value: JSONValue
+
+        class Run(Service):
+            @http.GET('.', description='Response')
+            def query(self) -> JsonResponse:
+                return JsonResponse(value={'a': [1, 2]})
+
+        reflect = Reflect()
+        reflect.add(Run)
+        schema = make_openapi_schema(reflect)
+        self.assertEqual(
+            schema.definitions['JsonResponse'],
+            SchemaMessage(properties={'value': SchemaMessage(type='object')}, type='object')
         )

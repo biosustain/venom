@@ -8,7 +8,7 @@ from venom.fields import FieldDescriptor
 from venom.message import fields, is_empty
 from venom.protocol import JSONProtocol, Protocol
 from venom.protocol.transcode import JSONTimestampTranscoder, DictMessageTranscoder, \
-    JSONValueTranscoder, JSONFieldMaskTranscoder
+    JSONValueTranscoder, JSONFieldMaskTranscoder, JSONTranscoder
 from venom.rpc.method import Method, HTTPFieldLocation
 from venom.rpc.reflect.reflect import Reflect
 from venom.rpc.reflect.stubs import OperationMessage, \
@@ -50,6 +50,8 @@ def message_reference_schema(message: Type[Message], protocol: Type[Protocol] = 
             return SchemaMessage(type='string')
         elif transcoder == JSONValueTranscoder:
             return field_schema(message.value)
+        elif transcoder == JSONTranscoder:
+            return SchemaMessage(type='object', description='JSON object')
         elif not issubclass(transcoder, DictMessageTranscoder):
             raise NotImplementedError(f'Unsupported transcoder for reflection {transcoder} on {message}')
 
