@@ -110,7 +110,7 @@ class Message(Mapping, metaclass=MessageMeta):
     def __repr__(self):
         parts = []
         for key in self.__fields__.keys():
-            if key in self._values and self._values[key]:
+            if key in self._values and self._values[key] is not None:
                 parts.append('{}={}'.format(key, repr(self._values[key])))
         return '{}({})'.format(self.__meta__.name, ', '.join(parts))
 

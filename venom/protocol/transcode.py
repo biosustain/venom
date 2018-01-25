@@ -100,7 +100,7 @@ class DictMessageTranscoder(MessageTranscoder):
         for (name, json_name), encode in self.field_encoders.items():
             try:
                 value = message[name]
-                if value:
+                if value is not None:
                     obj[json_name] = encode(value)
             except KeyError:
                 pass
