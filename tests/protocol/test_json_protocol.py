@@ -206,7 +206,7 @@ class JSONProtocolTestCase(TestCase):
         self.assertEqual(protocol.decode({}), Pet())
 
         self.assertEqual(protocol.pack(Pet()), b'{}')
-        self.assertEqual(protocol.pack(Pet([])), b'{}')
+        self.assertEqual(protocol.pack(Pet([])), b'{"sounds":[]}')
         self.assertEqual(protocol.pack(Pet(['hiss!'])), b'{"sounds":["hiss!"]}')
 
         self.assertEqual(protocol.unpack(b'{}'), Pet())
