@@ -31,6 +31,14 @@ class JSONProtocolTestCase(TestCase):
         self.assertEqual(e.exception.description, "'bad' is not of type 'object'")
         self.assertEqual(e.exception.path, [])
 
+    def test_encode_zero_numeric(self):
+        class Pet(Message):
+            cuteness: float
+
+        protocol = JSONProtocol(Pet)
+        self.assertEqual(protocol.encode(Pet(0.0)), {'cuteness': 0.0})
+        self.assertEqual(protocol.decode({'cuteness': 0.0}), Pet(0.0))
+
     def test_encode_with_field_mask(self):
         class Pet(Message):
             sound: str
@@ -198,7 +206,7 @@ class JSONProtocolTestCase(TestCase):
         self.assertEqual(protocol.decode({}), Pet())
 
         self.assertEqual(protocol.pack(Pet()), b'{}')
-        self.assertEqual(protocol.pack(Pet([])), b'{}')
+        self.assertEqual(protocol.pack(Pet([])), b'{"sounds":[]}')
         self.assertEqual(protocol.pack(Pet(['hiss!'])), b'{"sounds":["hiss!"]}')
 
         self.assertEqual(protocol.unpack(b'{}'), Pet())
